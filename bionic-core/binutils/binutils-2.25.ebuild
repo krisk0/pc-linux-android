@@ -27,8 +27,14 @@ src_unpack()
 
 src_prepare()
  {
-  # Convince ld to support sysroot, and not to panic when no valid sysroot
-  #  exists
+  # ld should have no mind of his own and be only able to find libraries by paths
+  #  set on command-line. This can be done two ways:
+  #   a) disable sysroot feature;
+  #   b) enable sysroot but make it fake (point to non-existing directory).
+  # But gcc sends sysroot flag to ld, and ld refuses to work if it does not know
+  #  about sysroot. So option b) is the only choice
+  # The patch below convinces ld to support sysroot, and not to panic when no 
+  #  valid sysroot exists
 
   #  sed -i ld/configure -e 's:use_sysroot=.*:use_sysroot=yes:g'
   # patching configure as above appear to have no effect, so we patch ldmain.c
