@@ -1,7 +1,7 @@
 x86_64-pc-linux-android toolchain 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-(including bionic library) can be compiled from source and installed as a native compiler on any amd64/Intel64 desktop running Linux, without using any propriety binary code. Just like uclibc toolchain brought can be brought to ``/usr/x86_64-pc-linux-uclibc`` via ``crossdev`` script.
+(including bionic library) can be compiled from source and installed as a native compiler on any amd64/Intel64 desktop running Linux, without using any propriety binary code. Just like uclibc toolchain can be brought to ``/usr/x86_64-pc-linux-uclibc`` via ``crossdev`` script.
 
 Ebuild scripts compiling and installing bionic library (``libc.so``, ``libm.so``, ...), dynamic interpreter ``/system/bin/linker`` and ``/system/bin/linker64`` and everything else required to natively run or compile from source 64-bit or 32-bit Android software (for x86 or x86_64 platform) will be here soon.
 
@@ -9,8 +9,8 @@ How soon? As soon as I convince ``*.mk`` files found in ``.zip`` downloadable fr
 
 As of today (16 Nov 2015) everything goes under ``/usr/x86_64-linux-android``; however bionic library and executables will be in ``/system`` (for compatibility with Android installed on your tablet).
 
-I prefer to get bug-reports via Github mechanism. If you want to teach me how to do something better of faster, enclose a patch. If you report a bug, supply enough information for me to reproduce it.
+I prefer to get bug-reports via Github mechanism. If you want to teach me how to do something in an elegant or standard way, enclose a patch. If you report a bug, supply enough information for me to reproduce it.
 
 My ebuilds only use https download (no git/cvs/...). Which means you can run them on a computer not connected to Internet (just plant all required ``.zip`` to ``distfiles/``).
 
-My ebuilds always take fixed version (by setting a specific value of SHA1), so they don't get broken by a software update.
+My ebuild scripts always take fixed version of software (by setting a specific value of SHA1), so they don't get broken by a software update. And I won't change that version, unless there is good reason (such as error fixing, smaller size of library, faster operation).
