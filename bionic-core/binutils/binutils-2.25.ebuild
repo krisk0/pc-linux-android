@@ -54,7 +54,7 @@ src_configure()
    --prefix=$p \
    --target=${h/gnu/android} --host=$h --build=$h \
    --enable-initfini-array --disable-nls \
-   --with-bugurl=https://github.com/$k \
+   --with-bugurl=https://github.com/$k/pc-linux-android \
    --enable-languages=c,c++ --disable-bootstrap --enable-plugins \
    --enable-libgomp --disable-libcilkrts --disable-libsanitizer \
    --enable-gold --without-cloog --enable-eh-frame-hdr-for-static \
