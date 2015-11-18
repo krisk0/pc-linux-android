@@ -9,13 +9,17 @@
 EAPI=5
 WANT_AUTOCONF=2.5   # configure inside jemalloc-3.6.0 was made with ver. 2.69
                     # Gentoo folks mapped 2.69 to 2.5, for unknown reason
-inherit autotools-multilib toolchain-funcs
+inherit autotools-multilib toolchain-funcs befriend-gcc
 
 HOMEPAGE=https://android.googlesource.com/platform/external/jemalloc/
 DESCRIPTION="Android dialect of jemalloc library, only needed to compile bionic"
 LICENSE=BSD
 SLOT=0
-DEPEND=bionic-core/bionic-headers
+# GCC 4.8.4 failed to compile bionic library, while GCC 4.9.3 succeeded. Can't
+#  go wrong if we demand GCC >= 4.9 here
+# GCC targeting uclibc should be just as good as GCC targeting glibc 
+DEPEND="bionic-core/bionic-headers
+ || ( >=sys-devel/gcc-4.9 >=cross-x86_64-pc-linux-uclibc/gcc-4.9 )"
 KEYWORDS=amd64
 IUSE=""
 a=android
@@ -49,19 +53,6 @@ src_prepare()
   eautoconf
  }
 
-ask_gcc_for_include()
- {
-  local cc1=$($(tc-getCC) -print-prog-name=cc1) || die "gcc refuses to cooperate"
-  local d=$(echo|$cc1 -v 2>&1|grep usr/lib/gcc|
-            egrep -v '^ignoring nonexistent directory'|
-            fgrep -v include-fixed|head -1)
-  # I thought $(smth) should give stripped string, but line above produces
-  #  directory prefixed by space. Is that bug or feature?
-  d=$(echo $d)
-  [ -d "$d" ] || die "ask_gcc_for_include() failed"
-  echo "$d"
- }
-
 # String QA_CONF... below is supposed to silence a portage warning, but it does
 #  not. Nevertheless let it be here
 QA_CONFIGURE_OPTIONS="--enable-static --disable-static --enable-shared --disable-shared"
@@ -86,8 +77,11 @@ src_configure()
   f="$f -Wno-unused-parameter -DANDROID_ALWAYS_PURGE"
   f="$f -DANDROID_MAX_ARENAS=2 -DANDROID_TCACHE_NSLOTS_SMALL_MAX=8"
   f="$f -DANDROID_TCACHE_NSLOTS_LARGE=16 -DANDROID_LG_TCACHE_MAXCLASS_DEFAULT=16"
-  local I=`ask_gcc_for_include`
-  einfo found gcc dir $I
+  
+  local gcc=`find_gcc 490`
+  einfo "will use gcc $gcc"
+  local I=$(gcc_your_include $gcc)
+  einfo found gcc include dir $I
   f="$f -nostdinc -isystem $EROOT/usr/x86_64-linux-android/include -isystem $I"
   export CFLAGS="$f"
   einfo "using flags $CFLAGS"
@@ -132,10 +126,6 @@ src_install()
    rm -rf lib$i
   done
   rm -rf share include bin
-
-  # store CFLAGS
-  mkdir -p $TGT/share
-  echo $CFLAGS > $TGT/share/jemalloc.cflags
 
   # Difference from AOSP build: -g not used; strip applied;
   #  _FORTIFY_SOURCE=0 not 2
