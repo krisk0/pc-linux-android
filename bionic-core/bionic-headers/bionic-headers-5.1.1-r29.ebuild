@@ -22,14 +22,11 @@ S="$WORKDIR/$B"
 src_unpack()
  {
   default
-  mv platform_${B}* $B
+  mv platform_${B}* $B || die "no platform_${B}* in $A"
  }
 
 src_prepare()
  {
-  # Anybody here?
-  [ -f libc/include/stdint.h ] || die "wrong path: `pwd`"
-  
   # sanity check on kernel sources
   local K=/usr/src/linux
   [ -d $K/include/uapi/sound ] || 
