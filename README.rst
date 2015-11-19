@@ -3,13 +3,9 @@ x86_64-pc-linux-android toolchain
 
 (including bionic library) can be compiled from source and installed as a native compiler on any amd64/Intel64 desktop running Linux, without using any propriety binary code. Just like uclibc toolchain can be brought to ``/usr/x86_64-pc-linux-uclibc`` via ``crossdev`` script.
 
-Ebuild scripts compiling and installing bionic library (``libc.so``, ``libm.so``, ...), dynamic interpreter ``/system/bin/linker`` and ``/system/bin/linker64`` and everything else required to natively run or compile from source 64-bit or 32-bit Android software (for x86 or x86_64 platform) will be here soon.
+Ebuild scripts compiling and installing bionic library (``libc.so``, ``libm.so``, ...), dynamic interpreter ``/system/bin/linker`` and ``/system/bin/linker64`` are here since 19 Nov 2015; native binutils and compiler coming soon. Compile/install time *emerge --quiet bionic-core/bionic*: 3 minutes from ``/usr/src/linux`` to ``/system/bin/linker64`` on my 4-proc Core i5-2500K @ 3.30GHz.
 
-**Good news! 17 Nov 2015 I made gcc 4.9.3 and clang 3.5 compile bionic. I have yet to create a ebuild.**
-
-I already built/installed base system headers, jemalloc, and a piece of binutils. The 3 ebuilds are here for you to take (don't forget to add bionic-core to ``/etc/portage/categories``).
-
-As of today (16 Nov 2015) everything goes under ``/usr/x86_64-linux-android``; however bionic library and executables will be in ``/system`` (for compatibility with Android installed on your tablet).
+How big is your hello_world.exe? Mine is 6240 bytes (with sys-devel/gcc-4.9.3) and 5672 bytes with gcc hypnotized to link for bionic.
 
 I prefer to get bug-reports via Github mechanism. If you want to teach me how to do something in an elegant or standard way, enclose a patch. If you report a bug, supply enough information for me to reproduce it.
 
