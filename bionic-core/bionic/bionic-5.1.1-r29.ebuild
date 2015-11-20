@@ -211,7 +211,7 @@ src_prepare()
   local ip="$my_root/include"
   # GCC 4.8.4 is unable to compile bionic, therefore find gcc >=4.9.0
   local gcc=$(find_gcc 490)
-  c_opt=$(gcc_your_include "$gcc")
+  local c_opt=$(gcc_your_include "$gcc")
   c_opt="-mandroid -nostdinc '-I$c_opt'"
   c_opt="$c_opt -I$ip"
   local gpp=$(find_gxx 490)
@@ -404,6 +404,7 @@ src_install()
     cd bionic
     find . -type f \! -name NOTICE -delete
     find . -type d -exec rmdir --parents {} + 2>/dev/null
+    # TODO: append smth clever to NOTICE files
     cp -r . "$i"
    }
 
