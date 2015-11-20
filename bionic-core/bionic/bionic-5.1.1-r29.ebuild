@@ -71,6 +71,11 @@ SLOT=0
 #  BSD. Guess /system/bin/linker64 is under BSD-2?
 LICENSE=BSD-2
 
+# If you don't plan to distribute compiled code, you may want to not install 
+#  NOTICE files. nonotice flag means "skip installation of NOTICE to 
+# /usr/share/doc/bionic-...
+IUSE=nonotice
+
 S="$WORKDIR" # $S == $WORKDIR == $ANDROID_BUILD_TOP
 
 src_unpack()
@@ -354,7 +359,7 @@ QA_PRESTRIPPED="/system/lib.*"
 src_install()
  {
   # Android does not follow Linux directory convention
-  ( cd "$ED"; rm -rf system share ; mkdir -p system/{bin,lib{32,64}} ) ||
+  ( cd "$ED"; rm -rf system usr ; mkdir -p system/{bin,lib{32,64}} ) ||
    die "/system resists"
   local i
 
@@ -391,12 +396,16 @@ src_install()
    done
   done
 
-  # install NOTICE files (they are only present in bionic/)
-  mkdir -p "$ED/usr/share/doc"
-  cd bionic
-  find . -type f \! -name NOTICE -delete
-  find . -type d -exec rmdir --parents {} + 2>/dev/null
-  cp -r . "$ED/usr/share/doc"
+  use nonotice ||
+   {
+    # install NOTICE files (they are only present in bionic/)
+    i="$ED/usr/share/doc/${P}-$PR"
+    mkdir -p "$i"
+    cd bionic
+    find . -type f \! -name NOTICE -delete
+    find . -type d -exec rmdir --parents {} + 2>/dev/null
+    cp -r . "$i"
+   }
 
   # clean
   unset my_root a B g TGT build_sha sha dg pstglia pstglia_sha{0,1} llvm_sha
