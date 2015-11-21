@@ -2,8 +2,9 @@
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=5
-inherit toolchain-funcs befriend-gcc
+inherit befriend-gcc
 HOMEPAGE=https://android.googlesource.com/toolchain/binutils
+DESCRIPTION="Binary code creation/manipulation utilities"
 LICENSE="|| ( GPL-3 LGPL-3 )"
 SRC_URI=https://github.com/crystax/android-toolchain-binutils
 SRC_URI=$SRC_URI/archive/crystax-ndk-10.2.1.zip
@@ -12,12 +13,14 @@ IUSE="+stage0"
 RESTRICT=mirror
 use stage0 && SLOT=0 || SLOT=1
 k=krisk0
-p=/tmp/n0.sUch.fIle.$k
-# compilation against /usr/x86_64-linux-android/include failed, so line below
-#  is commented out
+# compilation against /usr/x86_64-linux-android/include failed on stage0, so 
+#  line below is commented out
 #DEPEND="bionic-core/bionic-headers"
 DEPEND=" || ( >=sys-devel/gcc-4.9 >=cross-x86_64-pc-linux-uclibc/gcc-4.9 )"
 # Concerning choice of GCC, see comment in jemalloc-*.ebuild
+use stage0 || DEPEND="$DEPEND bionic-core/gcc-specs bionic-core/bionic"
+# Will use $p as fake prefix
+p=/tmp/n0.sUch.fIle.$k
 
 src_unpack()
  {
@@ -29,68 +32,169 @@ src_unpack()
 
 src_prepare()
  {
-  # ld should have no mind of his own and only be able to find libraries by 
-  #  paths set on command-line. This can be done two ways:
-  #   a) disable sysroot feature;
-  #   b) enable sysroot but make it fake (point to non-existing directory).
-  # But gcc sends sysroot flag to ld, and ld refuses to work in case a). Thus
-  #  option b) is the only choice
-
-  # The patch below convinces ld to support sysroot, and not to panic when no
-  #  valid sysroot exists
-
-  #  sed -i ld/configure -e 's:use_sysroot=.*:use_sysroot=yes:g'
-  # patching configure as above appear to have no effect, so we patch ldmain.c
+  # ld stage0 should have no mind of his own and only be able to find libraries 
+  #  by paths set on command-line; it also must accept sysroot from his master 
+  #  and not panic when no valid sysroot exists. Turning on sysroot in configure
+  #  does not disable panic. We have to patch ldmain.c
   local t=TARGET_SYSTEM_ROOT
   sed -e "s+#ifndef $t+&_${k}_was_here+" -e "s:$t \"\":$t \"$p\":" \
    -i ld/ldmain.c || die "patching ldmain.c failed"
+  # If you know how to create ld with properties described above without 
+  #  patching C file, feel free to submit your patch to this ebuild at 
+  #  https://github.com/krisk0/pc-linux-android/issues
+ }
+
+maybe-hypnotize-gcc()
+ {
+  # for stage0 use glibc- or uclibc- targeting compiler
+  use stage0 && { find_gcc 490 ; return; }
+  # if stage1 or stage0 compiler is installed, use it
+  local p=$(best_version bionic-core/gcc)
+  [ -z $p ] || { gcc-in-package $p; return; }
+  p=$(best_version bionic-core/stage0-gcc)
+  [ -z $p ] || { gcc-in-package $p; return; }
+  hypnotize-gcc $(find_gcc 490)
  }
 
 src_configure()
  {
   ( rm -rf $k ; mkdir $k ) || die "mkdir $k failed" ; cd $k
-  use stage0 || die "stage1 not implemented"
-  suffix=-stage0
+  unset suffix
   local h=x86_64-linux-gnu
+  local i
+  local j
+  use stage0 && 
+   {
+    # cross-compilation
+    suffix=-stage0
+    h="--target=${h/gnu/android} --host=$h --build=$h"
+    # create gold linker
+    local gold='--enable-gold --enable-gold=default'
+    local prefix=$p
+   } ||
+   {
+    # native compilation
+    h=${h/gnu/android}
+    h="--target=$h --host=$h --build=$h"
+    # compile error with hypnotized g++, disabling gold fixes it
+    local gold='--disable-gold'
+    local prefix="$EPREFIX/usr/x86_64-linux-android/libexec/${P}-stage1"
+   }
   # Tried to replace includes:
   #  export CFLAGS="$CFLAGS -nostdinc -isystem /usr/x86_64-linux-android/include"
   # This fails with message:
   #  configure: error: Building with plugin support requires a host that
   #   supports dlopen.
-  # We therefore build with standard headers and libraries
-  local gcc=`find_gcc 490`
+  # Therefore build with standard headers and libraries on stage0
+  
+  CC=$(maybe-hypnotize-gcc)
+  einfo "CC=>$CC<"
+  # if C compiler is hypnotized then must set LD_LIBRARY_PATH to walk-around
+  #  portage bug
+  local q=${CC/ized.gcc/ized-gcc}
+  [ "$q" == "$CC" ] || 
+   {
+    export LD_LIBRARY_PATH=$q/lib
+    # ... and must provide header sys/procfs.h. The file describes ELF format 
+    #  for GDB and should be safe to include
+    i=include/sys
+    j=procfs.h
+    ( cd "$q"; mkdir -p $i; ln -s "$EPREFIX/usr/$i/$j" $i || die "$j resists;" )
+    i="$q/include"
+    sed -i "$CC" -e "s>-DGCC_IS_HYPNOTIZED>-isystem '$i' &>"
+    # ... and don't forget to hypnotize g++
+    i=$(tail -1 $CC|sed 's> .*>>') ; i=${i#\'}; i=${i%\'};
+    [ -x $i ] || die "sanity check on gcc executable failed"
+    j=${i%cc}'++'
+    [ -x "$j" ] || die "don't know how to make CXX, no such file $j"
+    local cxx=${CC%cc}++
+    sed -e "s>$i>$j>" < "$CC" > "$cxx"
+    chmod +x "$cxx"
+    h="$h CXX='$cxx'"
+    # ... and cxx compiler needs to find his cstddef and probably other files
+    local w=cstddef
+    local cxx_p=$(equery b "$j")
+    i=$(equery f $cxx_p|fgrep $w|head -1)
+    [ -f "$i" ] || die "failed to find $w include"
+    i=$(dirname "$i")
+    local u=${w}-and-friends
+    ( cd "$q/include"; ln -s "$i" $u || die "failed to link g++ includes" )
+    sed -i "$cxx" -e "s>-DGCC_IS_HYPNOTIZED>-isystem '$q/include/$u' &>"
+    # ... and bits/*.h
+    w=bits/c++config.h
+    i=$(equery f $cxx_p|fgrep $w|grep -v /32/bits|head -1)
+    [ -f "$i" ] || die "failed to find $w include"
+    i=$(dirname "$i") 
+    u='more-friends-20151120'
+    cd "$q/include"; mkdir -p $u; cd $u; cp -r "$i" . || 
+     die "failed to cp bits/ includes"
+    sed -i "$cxx" -e "s>-DGCC_IS_HYPNOTIZED>-isystem '$q/include/$u' &>"
+    # patch GLIBC-specific bits/os_defines.h
+    sed -i bits/os_defines.h -e 's:__GLIBC_PREREQ(2,15):0:g' || 
+     die "patching GLIBC artefact failed"
+    cd $S/$k
+   }
   ../configure \
-   CC="$gcc" \
-   --prefix=$p \
-   --target=${h/gnu/android} --host=$h --build=$h \
+   CC="$CC" \
+   --prefix=$prefix \
+   $h \
    --enable-initfini-array --disable-nls \
    --with-bugurl=https://github.com/$k/pc-linux-android \
    --disable-bootstrap --enable-plugins \
    --enable-libgomp --disable-libcilkrts --disable-libsanitizer \
-   --enable-gold --without-cloog --enable-eh-frame-hdr-for-static \
+   $gold   \
+   --without-cloog --enable-eh-frame-hdr-for-static \
    --program-suffix="$suffix" \
-   --disable-shared --disable-nls --enable-gold=default ||
+   --disable-shared --disable-nls ||
     die "configure failed, cwd=`pwd`"
  }
 
 src_compile()
  {
   cd $k || die "cwd=`pwd`, cd $k failed"
-  emake all-gas all-ld all-binutils || die "emake failed"
+  use stage0 && 
+   {
+    emake all-gas all-ld all-binutils
+    return
+   }
+  emake
  }
 
 src_install()
  {
   cd $k || die "cwd=`pwd`, cd $k failed"
-  mkdir -p $k && cd $k && rm -f * || die "cwd=`pwd`, mkdir+cd $k failed"
-  local f
-  for f in ar objcopy readelf ; do
-   mv ../binutils/$f ./${f}$suffix || die "$f resists"
-  done
-  mv ../ld/ld-new ./ld$suffix || die "ld resists"
-  mv ../gas/as-new ./as$suffix || die "as resists"
-  into /usr/x86_64-linux-android
-  dobin * || die "dobin failed"
+  use stage0 && 
+   {  
+    mkdir -p $k && cd $k && rm -f * || die "cwd=`pwd`, mkdir+cd $k failed"
+    local f
+    for f in ar objcopy readelf ; do
+     mv ../binutils/$f ./${f}$suffix || die "$f resists"
+    done
+    mv ../ld/ld-new ./ld$suffix || die "ld resists"
+    mv ../gas/as-new ./as$suffix || die "as resists"
+    into /usr/x86_64-linux-android
+    dobin * || die "dobin failed"
+   } ||
+   {
+    # if make install misbehaves, abort
+    unset LD_LIBRARY_PATH
+    emake DESTDIR="$ED" install
+    # add some symlinks
+    local t="$ED/$EPREFIX/usr/x86_64-linux-android/bin"
+    mkdir -p $t && cd $t || die "lost in time"
+    local s=$(find .. -wholename *libexec/$PN*/bin -type d|grep -v x86_64)
+    [ -d $s ] || die "s=$s cwd=`pwd`; s is not directory"
+    local suffix=-stage1
+    # bin/ path is too long, set some short-cuts
+    for t in as ld ar nm objdump objcopy readelf ; do
+     local q=$(find $s -type f -name $t)
+     [ -z "$q" ] && die "failed to find $t, cwd=`pwd`, s=$s"
+     ln -s "$q" $t$suffix || die "failed to sym-link $t$suffix -> $q"
+    done
+    # remove documentation
+    cd $ED/$EPREFIX/usr/*linux*/libexec/$PN* || die "lost in space"
+    rm -rf share
+   }
   # save some bytes in /var/db/pkg/...
-  unset k p suffix
+  unset k p suffix LD_LIBRARY_PATH
  }
