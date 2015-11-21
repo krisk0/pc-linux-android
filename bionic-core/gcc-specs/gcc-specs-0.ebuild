@@ -4,6 +4,7 @@
 EAPI=5
 DESCRIPTION="Auxillary file used to hypnotize gcc compiler"
 HOMEPAGE=https://github.com/krisk0/pc-linux-android
+KEYWORDS=amd64
 SLOT=0
 S="${WORKDIR}"
 
