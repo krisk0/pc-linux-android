@@ -16,7 +16,7 @@ EAPI=5
 
 #  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 # KNOWN-TO-WORK compilers: sys-devel/gcc-4.9.3 installed from ebuild stamped
-#  Nov 2 2015; sys-devel/llvm-3.5.0.ebuild stamped 29 Aug 2015
+#  Nov 2 2015; sys-devel/llvm-3.5.0 from ebuild stamped 29 Aug 2015
 # Feel free to experiment but send your bug-reports to yourself
 #  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
@@ -58,10 +58,12 @@ RESTRICT=mirror
 DEPEND='
  >=sys-devel/llvm-3.5[clang]
  >=sys-devel/gcc-4.9[cxx]
- bionic-core/binutils
+ bionic-core/binutils[stage0]
  bionic-core/jemalloc
  bionic-core/bionic-headers
 '
+# TODO: get bionic to compile with binutils stage1, too
+
 # /system/bin/linker64 needs nothing except libraries installed by this package
 #  to run a program (theoretically). Thus this package has (technically
 #  speaking) no runtime dependencies
