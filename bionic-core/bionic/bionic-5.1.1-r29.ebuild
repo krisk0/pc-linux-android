@@ -5,18 +5,18 @@
 EAPI=5
 
 # This package is very sensitive to compiler version (for instance, GCC 4.8.4
-#  does not work). You may however try to use any gcc or g++ >= 4.9.0:
+#  does not work. You may however try to use any gcc or g++ >= 4.9.0:
 # CC=... CXX=...
 
 # If CC and/or CXX are unset, compilers gcc and g++ will be chosen
-#  automatically. clang and clang++ are taken from $EPREFIX/usr/bin/ directory
+#  automatically. clang and clang++ are taken from $EPREFIX/usr/bin/ directory.
 
-# If you play with CC and/or CXX and something bad happens, don't bother me with
-#  bug reports
+# If you set CC and/or CXX and something bad happens, don't bother me with bug
+#  reports.
 
 #  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 # KNOWN-TO-WORK compilers: sys-devel/gcc-4.9.3 installed from ebuild stamped
-#  Nov 2 2015; sys-devel/llvm-3.5.0 from ebuild stamped 29 Aug 2015
+#  Nov 2 2015; sys-devel/clang-3.5.0-r100 stamped 21 Feb 2015
 # Feel free to experiment but send your bug-reports to yourself
 #  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
@@ -58,12 +58,10 @@ RESTRICT=mirror
 DEPEND='
  >=sys-devel/llvm-3.5[clang]
  >=sys-devel/gcc-4.9[cxx]
- bionic-core/binutils[stage0]
+ bionic-core/binutils
  bionic-core/jemalloc
  bionic-core/bionic-headers
 '
-# TODO: get bionic to compile with binutils stage1, too
-
 # /system/bin/linker64 needs nothing except libraries installed by this package
 #  to run a program (theoretically). Thus this package has (technically
 #  speaking) no runtime dependencies
@@ -72,11 +70,6 @@ SLOT=0
 # .mk scripts are covered by Apache-2.0 license; bionic source code by 2-clause
 #  BSD. Guess /system/bin/linker64 is under BSD-2?
 LICENSE=BSD-2
-
-# If you don't plan to distribute compiled code, you may want to not install 
-#  NOTICE files. nonotice flag means "skip installation of NOTICE to 
-# /usr/share/doc/bionic-...
-IUSE=nonotice
 
 S="$WORKDIR" # $S == $WORKDIR == $ANDROID_BUILD_TOP
 
@@ -213,7 +206,7 @@ src_prepare()
   local ip="$my_root/include"
   # GCC 4.8.4 is unable to compile bionic, therefore find gcc >=4.9.0
   local gcc=$(find_gcc 490)
-  local c_opt=$(gcc_your_include "$gcc")
+  c_opt=$(gcc_your_include "$gcc")
   c_opt="-mandroid -nostdinc '-I$c_opt'"
   c_opt="$c_opt -I$ip"
   local gpp=$(find_gxx 490)
@@ -226,7 +219,7 @@ src_prepare()
   for x in x86 x86_64 ; do
    for y in ar objcopy ld readelf ; do
     sed -i build/core/combo/TARGET_linux-$x.mk -e\
-     "s|TARGET_${y^^} := .*|TARGET_${y^^} := $ep/${y}-stage0|" ||
+     "s|TARGET_${y^^} := .*|TARGET_${y^^} := $(find_tool $y)|" ||
       die "$y not welcome to TARGET_linux-$x.mk"
    done
    # use standard strip; chosen g++, gcc ; disable wildcard check on gcc; force
@@ -302,7 +295,16 @@ src_compile()
   # create 2 static libraries libcompiler_rt-extras.a in out/target/product/
   #  x86_64/@/STATIC_LIBRARIES/libcompiler_rt-extras_intermediates/ where @ is
   #  obj_x86 or obj. Do it without makefile, directly call clang then ar
-  local ar="$my_root/bin/ar-stage0"
+  local ar="$my_root/bin/ar"
+  [ -x "$ar" ] || 
+   {
+    ar="$my_root/bin/ar-stage1"
+    [ -x "$ar" ] || 
+     {
+      ar="$my_root/bin/ar-stage0"
+      [ -x "$ar" ] || die "failed to find ar executable"
+     }
+   }
   local i
   for i in 32 64 ; do
    local j=obj
@@ -315,7 +317,8 @@ src_compile()
    >$j/export_includes || "export_includes resist"
    clang_mulodi4 "-m$i -march=$arch -target $archT" $j/mulodi4.o
    cd $j || die "chdir to $j failed"
-   "$ar" crsD libcompiler_rt-extras.a mulodi4.o
+   "$ar" crsD libcompiler_rt-extras.a mulodi4.o || die "ar failed"
+   einfo "created libcompiler_rt-extras.a in `pwd`"
    cd "$S" || exit
   done
   # there is no NOTICE file in llvm .zip. NOTICE files are only present in
@@ -333,7 +336,7 @@ src_compile()
   done
   local o=out/target/product/x86_64/obj
   # crtend* comes without invitation, but crtbegin_* want invitation
-  for i in dynamic static ; do
+  for i in dynamic static so; do
    j="$j $o/lib/crtbegin_$i.o"
    j="$j ${o}_x86/lib/crtbegin_$i.o"
   done
@@ -348,7 +351,9 @@ cp_so_m()
   [ -f $1 ] || die "library not found: $1"
   mkdir -p "$2" || die "cp_so_m(); directory $2 resists"
   cp $1 "$2" || die "cp $1 '$2' failed"
+  einfo "installed $1"
   local a=$(echo $1|sed s:/lib.*::)/STATIC_LIBRARIES
+  einfo "cut-off lib: $a"
   local b=$(basename ${1%.so}).a
   local c=$(find $a -name $b -type f)
   [ -z "$c" ] && { einfo "failed to find $b in $a"; return; }
@@ -361,12 +366,12 @@ QA_PRESTRIPPED="/system/lib.*"
 src_install()
  {
   # Android does not follow Linux directory convention
-  ( cd "$ED"; rm -rf system usr ; mkdir -p system/{bin,lib{32,64}} ) ||
-   die "/system resists"
+  rm -rf "$ED/system"
   local i
+  mkdir -p "$ED/system/bin" || die "/system/$bin resists"
 
-  # please those who have 32-bit x86 tablet: sym-limk lib32 as lib
-  ( cd "$ED/system"; ln -s lib32 lib )
+  # please those who have 32-bit x86 tablet and sym-limk lib32 as lib
+  ( cd $ED/system; ln -s lib32 lib )
 
   local p=out/target/product/x86_64
   local j=0
@@ -378,8 +383,10 @@ src_install()
   [ $j == 0 ] && die "binary interpreters not found"
   einfo "$j binaries installed"
 
-  # libstdc++.so made but not installed
-  for i in m dl c; do
+  local so="m dl c stdc++" # libstdc++.so made but not installed
+  # if you think that libstdc++.so should be installed by this ebuild,
+  #  write a bug-report at https://github.com/krisk0/pc-linux-android/issues/new
+  for i in $so; do
    local k=lib${i}.so
    j=$p/obj/lib/$k
    cp_so_m $j "$ED/system/lib64"
@@ -387,8 +394,8 @@ src_install()
    cp_so_m $j "$ED/system/lib32"
   done
 
-  # 3*2 compiler stubs
-  for i in end_android begin_{static,dynamic} ; do
+  # 5*2 compiler stubs
+  for i in {begin,end}_so end_android begin_{static,dynamic} ; do
    local jj=$(find out -type f -wholename "*x86_64/*crt$i.o")
    [ -z "$jj" ] && die "crt$i.o not found"
    for j in $jj ; do
@@ -398,18 +405,7 @@ src_install()
    done
   done
 
-  use nonotice ||
-   {
-    # install NOTICE files (they are only present in bionic/)
-    i="$ED/usr/share/doc/${P}-$PR"
-    mkdir -p "$i"
-    cd bionic
-    find . -type f \! -name NOTICE -delete
-    find . -type d -exec rmdir --parents {} + 2>/dev/null
-    # TODO: append smth clever to NOTICE files
-    cp -r . "$i"
-   }
-
   # clean
-  unset my_root a B g TGT build_sha sha dg pstglia pstglia_sha{0,1} llvm_sha
+  unset my_root a B g TGT build_sha sha dg pstglia pstglia_sha0 pstglia_sha1 \
+   llvm_sha
  }
