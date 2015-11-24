@@ -3,56 +3,66 @@
 
 EAPI=5
 inherit befriend-gcc
+# This .ebuild respects CC and CXX settings, if bionic-core/gcc is not installed
 HOMEPAGE=https://android.googlesource.com/toolchain/binutils
 DESCRIPTION="Binary code creation/manipulation utilities"
 LICENSE="|| ( GPL-3 LGPL-3 )"
 SRC_URI=https://github.com/crystax/android-toolchain-binutils
-SRC_URI=$SRC_URI/archive/crystax-ndk-10.2.1.zip
+# name crystax-ndk-10.2.1.zip is shared by gcc and binutils, so we rename:
+#  -ndk-  ->  -binutiuls-
+SRC_URI="$SRC_URI/archive/crystax-ndk-10.2.1.zip -> crystax-${PN}-10.2.1.zip"
 KEYWORDS=amd64
 IUSE="+stage0"
 RESTRICT=mirror
 use stage0 && SLOT=0 || SLOT=1
+
+DEPEND="
+ stage0? ( || ( >=sys-devel/gcc-4.9 >=cross-x86_64-pc-linux-uclibc/gcc-4.9 ) )
+ !stage0?
+  (
+   || ( >=sys-devel/gcc-4.9[cxx] >=cross-x86_64-pc-linux-uclibc/gcc-4.9[cxx] )
+   bionic-core/gcc-specs bionic-core/bionic
+  )
+ "
+# Concerning choice of GCC, see comment in jemalloc-*.ebuild.
+
 k=krisk0
-# compilation against /usr/x86_64-linux-android/include failed on stage0, so 
-#  line below is commented out
-#DEPEND="bionic-core/bionic-headers"
-DEPEND=" || ( >=sys-devel/gcc-4.9 >=cross-x86_64-pc-linux-uclibc/gcc-4.9 )"
-# Concerning choice of GCC, see comment in jemalloc-*.ebuild
-use stage0 || DEPEND="$DEPEND bionic-core/gcc-specs bionic-core/bionic"
 # Will use $p as fake prefix
 p=/tmp/n0.sUch.fIle.$k
 
 src_unpack()
  {
   default
-  d=`find . -type d -name $P` || die "no $P inside .zip"
+  d=`find . -type d -name $P`
+  [ -z $d ] && die "no $P inside .zip"
   mv $d . || die "mv $P failed"
   ls | grep -v $P | xargs rm -rf
  }
 
 src_prepare()
  {
-  # ld stage0 should have no mind of his own and only be able to find libraries 
-  #  by paths set on command-line; it also must accept sysroot from his master 
-  #  and not panic when no valid sysroot exists. Turning on sysroot in configure
-  #  does not disable panic. We have to patch ldmain.c
+  # ld stage0 should have no mind of his own and only be able to find libraries
+  #  by paths set on command-line; it also must accept any sysroot from command-
+  #  line and not panic when it is fake. Turning on sysroot at configure
+  #  stage does not disable panic. It means we have to patch ldmain.c
   local t=TARGET_SYSTEM_ROOT
   sed -e "s+#ifndef $t+&_${k}_was_here+" -e "s:$t \"\":$t \"$p\":" \
    -i ld/ldmain.c || die "patching ldmain.c failed"
-  # If you know how to create ld with properties described above without 
-  #  patching C file, feel free to submit your patch to this ebuild at 
+  # If you know how to create ld with properties described above without
+  #  patching a C file, feel free to submit your patch to this ebuild at
   #  https://github.com/krisk0/pc-linux-android/issues
  }
 
 maybe-hypnotize-gcc()
  {
-  # for stage0 use glibc- or uclibc- targeting compiler
+  # on stage0 use glibc- or uclibc- targeting compiler
   use stage0 && { find_gcc 490 ; return; }
   # if stage1 or stage0 compiler is installed, use it
   local p=$(best_version bionic-core/gcc)
   [ -z $p ] || { gcc-in-package $p; return; }
   p=$(best_version bionic-core/stage0-gcc)
   [ -z $p ] || { gcc-in-package $p; return; }
+  # no suitable compiler found, will hypnotize regular gcc
   hypnotize-gcc $(find_gcc 490)
  }
 
@@ -63,7 +73,7 @@ src_configure()
   local h=x86_64-linux-gnu
   local i
   local j
-  use stage0 && 
+  use stage0 &&
    {
     # cross-compilation
     suffix=-stage0
@@ -86,16 +96,16 @@ src_configure()
   #  configure: error: Building with plugin support requires a host that
   #   supports dlopen.
   # Therefore build with standard headers and libraries on stage0
-  
+
   CC=$(maybe-hypnotize-gcc)
-  einfo "CC=>$CC<"
+  einfo "CC=$CC"
   # if C compiler is hypnotized then must set LD_LIBRARY_PATH to walk-around
   #  portage bug
   local q=${CC/ized.gcc/ized-gcc}
-  [ "$q" == "$CC" ] || 
+  [ "$q" == "$CC" ] ||
    {
     export LD_LIBRARY_PATH=$q/lib
-    # ... and must provide header sys/procfs.h. The file describes ELF format 
+    # ... and must provide header sys/procfs.h. The file describes ELF format
     #  for GDB and should be safe to include
     i=include/sys
     j=procfs.h
@@ -103,12 +113,18 @@ src_configure()
     i="$q/include"
     sed -i "$CC" -e "s>-DGCC_IS_HYPNOTIZED>-isystem '$i' &>"
     # ... and don't forget to hypnotize g++
-    i=$(tail -1 $CC|sed 's> .*>>') ; i=${i#\'}; i=${i%\'};
-    [ -x $i ] || die "sanity check on gcc executable failed"
-    j=${i%cc}'++'
-    [ -x "$j" ] || die "don't know how to make CXX, no such file $j"
-    local cxx=${CC%cc}++
-    sed -e "s>$i>$j>" < "$CC" > "$cxx"
+    local cxx_exe="$CXX"
+    [ -x "$cxx" ] ||
+     {
+      # no g++ selected by user, must auto-select it
+      i=$(tail -1 $CC|sed 's> .*>>') ; i=${i#\'}; i=${i%\'};
+      [ -x $i ] || die "sanity check on gcc executable failed"
+      j=${i%cc}'++'
+      [ -x "$j" ] || die "no such file $j, don't know how to define CXX"
+      cxx_exe="$j"
+     }
+    local cxx=${CC#cc}++
+    sed -e "s>$i>$cxx_exe>" < "$CC" > "$cxx" || die "failed to cook g++ script"
     chmod +x "$cxx"
     h="$h CXX='$cxx'"
     # ... and cxx compiler needs to find his cstddef and probably other files
@@ -124,13 +140,13 @@ src_configure()
     w=bits/c++config.h
     i=$(equery f $cxx_p|fgrep $w|grep -v /32/bits|head -1)
     [ -f "$i" ] || die "failed to find $w include"
-    i=$(dirname "$i") 
+    i=$(dirname "$i")
     u='more-friends-20151120'
-    cd "$q/include"; mkdir -p $u; cd $u; cp -r "$i" . || 
+    cd "$q/include"; mkdir -p $u; cd $u; cp -r "$i" . ||
      die "failed to cp bits/ includes"
     sed -i "$cxx" -e "s>-DGCC_IS_HYPNOTIZED>-isystem '$q/include/$u' &>"
     # patch GLIBC-specific bits/os_defines.h
-    sed -i bits/os_defines.h -e 's:__GLIBC_PREREQ(2,15):0:g' || 
+    sed -i bits/os_defines.h -e 's:__GLIBC_PREREQ(2,15):0:g' ||
      die "patching GLIBC artefact failed"
     cd $S/$k
    }
@@ -152,7 +168,7 @@ src_configure()
 src_compile()
  {
   cd $k || die "cwd=`pwd`, cd $k failed"
-  use stage0 && 
+  use stage0 &&
    {
     emake all-gas all-ld all-binutils
     return
@@ -163,8 +179,8 @@ src_compile()
 src_install()
  {
   cd $k || die "cwd=`pwd`, cd $k failed"
-  use stage0 && 
-   {  
+  use stage0 &&
+   {
     mkdir -p $k && cd $k && rm -f * || die "cwd=`pwd`, mkdir+cd $k failed"
     local f
     for f in ar objcopy readelf ; do
@@ -194,7 +210,24 @@ src_install()
     # remove documentation
     cd $ED/$EPREFIX/usr/*linux*/libexec/$PN* || die "lost in space"
     rm -rf share
+    # copy gold linker from stage0
+    s="$EPREFIX/usr/x86_64-linux-android/bin/ld-stage"
+    local gold_ld="${s}1"
+    [ -x $gold_ld ] || gold_ld="${s}0"
+    [ -x $gold_ld ] || die "gold ld stolen"
+    gold_ld=$(realpath "$gold_ld")
+    cd "$ED/$EPREFIX/usr/x86_64-linux-android/"
+    s=0
+    for t in $(find . -type f -wholename '*/bin/ld') ; do
+     einfo "Replacing executable $t"
+     s=$((s+1))
+     cp "$gold_ld" $t
+    done
+    [ $s == 0 ] && die "failed to find fresh ld"
+    # delete ld.bfd
+    einfo "replaced ld count: $s"
+    find . -type f -wholename '*/bin/ld.bfd' -delete || die "find malfunctions"
    }
   # save some bytes in /var/db/pkg/...
-  unset k p suffix LD_LIBRARY_PATH
+  unset k p suffix
  }
