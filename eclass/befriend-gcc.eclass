@@ -3,6 +3,15 @@
 
 inherit toolchain-funcs
 
+find_tool()
+ {
+  local d="$EPREFIX/usr/x86_64-linux-android/bin"
+  [ -x "$d/$1" ] && { echo "$d/$1" ; return; }
+  [ -x "$d/${1}-stage1" ] && { echo "$d/$1-stage1" ; return; }
+  [ -x "$d/${1}-stage0" ] && { echo "$d/$1-stage0" ; return; }
+  die "failed to find tool $1"
+ }
+
 gcc_your_include()
  {
   local cc1=$($1 -print-prog-name=cc1) || die "$1 refuses to cooperate"
@@ -32,6 +41,14 @@ gcc-in-package()
    }
  }
 
+gxx-in-package()
+ {
+  [ -z $1 ] ||
+   {
+    (equery f $1|fgrep /gcc-bin/|egrep -- -g++$|head -1) 2>/dev/null
+   }
+ }
+
 find-gcc-in-category()
  {
   local s=$(( $2/100 ))
@@ -48,7 +65,7 @@ find-gxx-in-category()
   local j=$(( ($2-100*s)/10 ))
   local k=$(( $2-100*s-10*j ))
   local c=$(best_version ">=$1/gcc-$s.$j.$k")
-  c=$(equery f $c|fgrep /gcc-bin/|fgrep -- -g++|head -1)
+  c=$(gxx-in-package $c)
   [ $(gcc_your_version "$c") -ge $2 ] && echo "$c"
  }
 
@@ -119,6 +136,8 @@ hypnotize-gcc()
   for i in $(ls "$donor") ; do
    ln -s $donor/$i
   done
+  # theese dare link to glibc! go away
+  rm -f libstdc++.so.*
   o="-mandroid -specs='$spec' --sysroot=/no.such.file.$RANDOM.$PPID -nostdinc"
   spec=$(dirname "$spec"|xargs dirname)/include
   o="$o -isystem '$spec' -isystem '$donor/include' -Wl,-L,/system/lib64"
@@ -159,4 +178,45 @@ hypnotize-gcc()
   LD_LIBRARY_PATH=$b/lib ./hello_world.exe || die "executable does not run"
   popd >/dev/null
   # export LD_LIBRARY_PATH="$S/$b/lib" this does not work, must export elsewhere
+ }
+
+find-then-hypnotize-gcc()
+ {
+  local c=$(find_gcc $1)
+  hypnotize-gcc "$c"
+ }
+
+hypnotize-gxx-too()
+ {
+  local c=$(tail -1 "$1"|sed 's> .*>>') ; c=${c#\'}; c=${c%\'};
+  [ -x "$c" ] || die "not executable $c"
+  local cxx_exe=${c%cc}'++'
+  #echo "$c -> $cxx_exe" 1>&2
+  [ -x "$cxx_exe" ] || die "no such file $cxx_exe, don't know how to define CXX"
+  local cxx=${1#cc}++
+  sed -e "s>$c>$cxx_exe>" < "$1" > "$cxx" || die "failed to cook g++ script"
+  chmod +x "$cxx"
+  # compiler will want to find his cstddef and other files
+  local w=cstddef
+  local cxx_p=$(equery b "$cxx_exe")
+  local i=$(equery f $cxx_p|fgrep $w|head -1)
+  [ -f "$i" ] || die "failed to find $w include"
+  i=$(dirname "$i") 
+  local u=${w}-and-friends
+  local q=${1/ized.gcc/ized-gcc}
+  ( mkdir -p "$q/include" ;  cd "$q/include"; ln -s "$i" $u || 
+   die "failed to link g++ includes" )
+  # ... and bits/*.h
+  w=bits/c++config.h
+  i=$(equery f $cxx_p|fgrep $w|grep -v /32/bits|head -1)
+  [ -f "$i" ] || die "failed to find $w include"
+  i=$(dirname "$i")
+  u='more-friends-20151123'
+  pushd "$q/include" >/dev/null
+  mkdir -p $u; cd $u; cp -r "$i" . || die "failed to cp bits/ includes"
+  sed -i "$cxx" -e "s>-DGCC_IS_HYPNOTIZED>-isystem '$q/include/$u' &>"
+  # patch GLIBC-specific bits/os_defines.h
+  sed -i bits/os_defines.h -e 's:__GLIBC_PREREQ(2,15):0:g' ||
+   die "patching GLIBC artefact failed"
+  popd >/dev/null
  }
