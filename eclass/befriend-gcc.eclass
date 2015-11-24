@@ -99,7 +99,7 @@ hypnotize-gcc()
    local j="$o/$i"
    [ -x "$j" ] && { ln -s "$j" ; continue; }
    j=${j}-stage1
-   [ -x "$j" ] && { ln -s "$j" ; continue; }
+   [ -x "$j" ] && { ln -s "$j" $i ; continue; }
    j=${j%1}0
    [ -x "$j" ] || die "failed to find $i. Install bionic-core/binutils"
    ln -s "$j" $i
