@@ -57,10 +57,8 @@ maybe-hypnotize-gcc()
  {
   # on stage0 use glibc- or uclibc- targeting compiler
   use stage0 && { find_gcc 490 ; return; }
-  # if stage1 or stage0 compiler is installed, use it
+  # if a good compiler is installed, use it
   local p=$(best_version bionic-core/gcc)
-  [ -z $p ] || { gcc-in-package $p; return; }
-  p=$(best_version bionic-core/stage0-gcc)
   [ -z $p ] || { gcc-in-package $p; return; }
   # no suitable compiler found, will hypnotize regular gcc
   hypnotize-gcc $(find_gcc 490)
@@ -117,7 +115,7 @@ src_configure()
     [ -x "$cxx" ] ||
      {
       # no g++ selected by user, must auto-select it
-      i=$(tail -1 $CC|sed 's> .*>>') ; i=${i#\'}; i=${i%\'};
+      i=$(tail -1 "$CC"|sed 's> .*>>') ; i=${i#\'}; i=${i%\'};
       [ -x $i ] || die "sanity check on gcc executable failed"
       j=${i%cc}'++'
       [ -x "$j" ] || die "no such file $j, don't know how to define CXX"
@@ -202,7 +200,7 @@ src_install()
     [ -d $s ] || die "s=$s cwd=`pwd`; s is not directory"
     local suffix=-stage1
     # bin/ path is too long, set some short-cuts
-    for t in as ld ar nm objdump objcopy readelf ; do
+    for t in as ld ar nm objdump objcopy readelf ranlib; do
      local q=$(find $s -type f -name $t)
      [ -z "$q" ] && die "failed to find $t, cwd=`pwd`, s=$s"
      ln -s "$q" $t$suffix || die "failed to sym-link $t$suffix -> $q"
