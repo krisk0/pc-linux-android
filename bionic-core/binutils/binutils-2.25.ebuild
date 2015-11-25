@@ -97,12 +97,14 @@ src_configure()
 
   CC=$(maybe-hypnotize-gcc)
   einfo "CC=$CC"
-  # if C compiler is hypnotized then must set LD_LIBRARY_PATH to walk-around
-  #  portage bug
+
+  # if C compiler is hypnotized then we will run android executable which need
+  #  LD_LIBRARY_PATH
   local q=${CC/ized.gcc/ized-gcc}
   [ "$q" == "$CC" ] ||
    {
     export LD_LIBRARY_PATH=$q/lib
+
     # ... and must provide header sys/procfs.h. The file describes ELF format
     #  for GDB and should be safe to include
     i=include/sys
@@ -110,12 +112,13 @@ src_configure()
     ( cd "$q"; mkdir -p $i; ln -s "$EPREFIX/usr/$i/$j" $i || die "$j resists;" )
     i="$q/include"
     sed -i "$CC" -e "s>-DGCC_IS_HYPNOTIZED>-isystem '$i' &>"
+
     # ... and don't forget to hypnotize g++
     local cxx_exe="$CXX"
     [ -x "$cxx" ] ||
      {
       # no g++ selected by user, must auto-select it
-      i=$(tail -1 "$CC"|sed 's> .*>>') ; i=${i#\'}; i=${i%\'};
+      i=$(un-hypnotize-gcc "$CC")
       [ -x $i ] || die "sanity check on gcc executable failed"
       j=${i%cc}'++'
       [ -x "$j" ] || die "no such file $j, don't know how to define CXX"
@@ -125,6 +128,7 @@ src_configure()
     sed -e "s>$i>$cxx_exe>" < "$CC" > "$cxx" || die "failed to cook g++ script"
     chmod +x "$cxx"
     h="$h CXX='$cxx'"
+
     # ... and cxx compiler needs to find his cstddef and probably other files
     local w=cstddef
     local cxx_p=$(equery b "$j")
@@ -143,6 +147,7 @@ src_configure()
     cd "$q/include"; mkdir -p $u; cd $u; cp -r "$i" . ||
      die "failed to cp bits/ includes"
     sed -i "$cxx" -e "s>-DGCC_IS_HYPNOTIZED>-isystem '$q/include/$u' &>"
+
     # patch GLIBC-specific bits/os_defines.h
     sed -i bits/os_defines.h -e 's:__GLIBC_PREREQ(2,15):0:g' ||
      die "patching GLIBC artefact failed"
