@@ -383,9 +383,7 @@ src_install()
   [ $j == 0 ] && die "binary interpreters not found"
   einfo "$j binaries installed"
 
-  local so="m dl c stdc++" # libstdc++.so made but not installed
-  # if you think that libstdc++.so should be installed by this ebuild,
-  #  write a bug-report at https://github.com/krisk0/pc-linux-android/issues/new
+  local so="m dl c stdc++"
   for i in $so; do
    local k=lib${i}.so
    j=$p/obj/lib/$k
