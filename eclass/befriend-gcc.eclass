@@ -143,7 +143,7 @@ hypnotize-gcc()
   o="$o -isystem '$spec' -isystem '$donor/include' -Wl,-L,/system/lib64"
   i=${b/-/.}
   # portage sets LD_PRELOAD=libsandbox.so; the library fails to load under
-  #  /system/bin/linker64; disabling sandbox does not work. To walk-around 
+  #  /system/bin/linker64; disabling sandbox does not work. To walk-around
   #  this portage bug, create fake libsandbox.so
   local fuck_sandbox=libsandbox
   echo "//Walk-around portage-sandbox-does-not-turn-off-bug" |
@@ -161,8 +161,11 @@ hypnotize-gcc()
    echo "@GCC_EXEC_PREFIX='$b/libexec/gcc/has_cryptic_directory_structure'"
    echo "@LIBRARY_PATH='/system/lib64:$b/lib'"
    echo "@LD_LIBRARY_PATH='$b/lib'"
+   echo "unset a"
+   echo 's=$(echo "$@"|fgrep -c -- "-Wl,-shared")'
+   echo '[ $s == 0 ] && a="-pie"'
    echo "@PATH='$b/bin:$EPREFIX/system/bin'"
-   echo "'$1' $o -DGCC_IS_HYPNOTIZED \$@"
+   echo "'$1' $o \$a -DGCC_IS_HYPNOTIZED \$@"
   } | sed \
    -e 's:^@:export :g' \
    -e "s>$b>$S/$b>g" \
@@ -173,7 +176,7 @@ hypnotize-gcc()
   ( printf '#include <stdio.h>\nint main() { printf("@"); return 0; }' |
    sed "s:@:$S/$i:" | ./$i -xc - -O3 -v -ohello_world.exe ) ||
     die "hypnosis failed"
-  # good thing linker64 does not care about /usr/lib64 but respects 
+  # good thing linker64 does not care about /usr/lib64 but respects
   #  LD_LIBRARY_PATH
   LD_LIBRARY_PATH=$b/lib ./hello_world.exe || die "executable does not run"
   popd >/dev/null
@@ -186,14 +189,23 @@ find-then-hypnotize-gcc()
   hypnotize-gcc "$c"
  }
 
-hypnotize-gxx-too()
+un-hypnotize-gcc()
+# extract and print executable name from last line of script $1
  {
-  local c=$(tail -1 "$1"|sed 's> .*>>') ; c=${c#\'}; c=${c%\'};
+  local i=$(tail -1 "$1"|sed 's> .*>>') ; i=${i#\'}; i=${i%\'};
+  echo "$i"
+ }
+
+hypnotize-gxx-too()
+# $1: hypnotized gcc script
+# print hypnotized g++ script name
+ {
+  local c=$(un-hypnotize-gcc "$1")
   [ -x "$c" ] || die "not executable $c"
   local cxx_exe=${c%cc}'++'
   #echo "$c -> $cxx_exe" 1>&2
   [ -x "$cxx_exe" ] || die "no such file $cxx_exe, don't know how to define CXX"
-  local cxx=${1#cc}++
+  local cxx=${1%cc}'++'
   sed -e "s>$c>$cxx_exe>" < "$1" > "$cxx" || die "failed to cook g++ script"
   chmod +x "$cxx"
   # compiler will want to find his cstddef and other files
@@ -201,10 +213,10 @@ hypnotize-gxx-too()
   local cxx_p=$(equery b "$cxx_exe")
   local i=$(equery f $cxx_p|fgrep $w|head -1)
   [ -f "$i" ] || die "failed to find $w include"
-  i=$(dirname "$i") 
+  i=$(dirname "$i")
   local u=${w}-and-friends
   local q=${1/ized.gcc/ized-gcc}
-  ( mkdir -p "$q/include" ;  cd "$q/include"; ln -s "$i" $u || 
+  ( mkdir -p "$q/include" ;  cd "$q/include"; ln -s "$i" $u ||
    die "failed to link g++ includes" )
   # ... and bits/*.h
   w=bits/c++config.h
@@ -218,5 +230,6 @@ hypnotize-gxx-too()
   # patch GLIBC-specific bits/os_defines.h
   sed -i bits/os_defines.h -e 's:__GLIBC_PREREQ(2,15):0:g' ||
    die "patching GLIBC artefact failed"
+  echo "$cxx"
   popd >/dev/null
  }
