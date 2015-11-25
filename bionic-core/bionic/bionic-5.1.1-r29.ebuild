@@ -138,9 +138,6 @@ src_unpack()
    # pretend that export_includes target has been made
    touch $k/export_includes || die "$k/ does not want export_includes"
   done
-
-  # script that will run make
-  cp "$FILESDIR/lunch-make.sh" .
  }
 
 # du -sh says 286M after build, 137M after unpack before trimming, that's small,
