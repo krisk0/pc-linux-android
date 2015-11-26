@@ -1,0 +1,10 @@
+#!/bin/sh
+
+echo "link-so run with flags: $@"
+
+exec "$cxx_exe" \
+ -mandroid -nostdinc -nostdlib \
+ -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now \
+ -Wl,--warn-shared-textrel -Wl,--gc-sections -Wl,--hash-style=sysv \
+ -L$EPREFIX/system/lib64 -L$EPREFIX/usr/x86_64-linux-android/lib64 \
+ $@
