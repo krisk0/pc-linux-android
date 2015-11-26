@@ -113,12 +113,7 @@ hypnotize-gcc()
   local i
   # take ld or ld-stage1 or ld-stage0
   for i in ld as ; do
-   local j="$o/$i"
-   [ -x "$j" ] && { ln -s "$j" ; continue; }
-   j=${j}-stage1
-   [ -x "$j" ] && { ln -s "$j" $i ; continue; }
-   j=${j%1}0
-   [ -x "$j" ] || die "failed to find $i. Install bionic-core/binutils"
+   j=$(find_tool $i)
    ln -s "$j" $i
   done
   donor=$("$1" -print-prog-name=cc1|xargs dirname)
@@ -136,24 +131,24 @@ hypnotize-gcc()
   for i in $(ls "$donor") ; do
    ln -s $donor/$i
   done
-  # theese dare link to glibc! go away
-  rm -f libstdc++.so.*
+  # We already have libstdc++ in /system/lib64, don't overdoze
+  rm -f libstdc++.*
   o="-mandroid -specs='$spec' --sysroot=/no.such.file.$RANDOM.$PPID -nostdinc"
   spec=$(dirname "$spec"|xargs dirname)/include
-  o="$o -isystem '$spec' -isystem '$donor/include' -Wl,-L,/system/lib64"
+  o="$o -isystem '$spec' -isystem '$donor/include' -Wl,-L,/system/lib64 -pie"
   i=${b/-/.}
   # portage sets LD_PRELOAD=libsandbox.so; the library fails to load under
   #  /system/bin/linker64; disabling sandbox does not work. To walk-around
   #  this portage bug, create fake libsandbox.so
-  local fuck_sandbox=libsandbox
-  echo "//Walk-around portage-sandbox-does-not-turn-off-bug" |
-   "$1" -xc - -O3 -c -mandroid -o$fuck_sandbox.o
-  "$1" -mandroid -nostdinc -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now \
-   -Wl,--warn-shared-textrel -Wl,--gc-sections -Wl,--hash-style=sysv \
-   -nostdlib -Wl,-soname,$fuck_sandbox.so -Wl,-shared $fuck_sandbox.o \
-   -o$fuck_sandbox.so ||
-    die "$fuck_sandbox compilation failed"
-  rm $fuck_sandbox.o
+  local dummy_sandbox=libsandbox
+  export cxx_exe="$1"
+  echo "//Walk-around libsandbox.so incompatibility problem" |
+   "$1" -xc - -O3 -c -mandroid -o$dummy_sandbox.o
+  local link_so="$EPREFIX/usr/x86_64-linux-android/share/link-so"
+  "$link_so" -Wl,-soname,$dummy_sandbox.so \
+   -Wl,-shared $dummy_sandbox.o -o$dummy_sandbox.so >/dev/null ||
+    die "$dummy_sandbox compilation failed"
+  rm $dummy_sandbox.o
   cd "$S"
 
   {
@@ -161,11 +156,12 @@ hypnotize-gcc()
    echo "@GCC_EXEC_PREFIX='$b/libexec/gcc/has_cryptic_directory_structure'"
    echo "@LIBRARY_PATH='/system/lib64:$b/lib'"
    echo "@LD_LIBRARY_PATH='$b/lib'"
-   echo "unset a"
-   echo 's=$(echo "$@"|fgrep -c -- "-Wl,-shared")'
-   echo '[ $s == 0 ] && a="-pie"'
+   echo "@cxx_exe='$cxx_exe'"
+   echo 's=$(echo "$@"|fgrep -c -- -Wl,-shared)'
+   echo 'u=$(echo "$@"|fgrep -c -- -Wl,-soname)'
+   echo "[ \${s}\$u == 00 ] || exec '$link_so' \$@"
    echo "@PATH='$b/bin:$EPREFIX/system/bin'"
-   echo "'$1' $o \$a -DGCC_IS_HYPNOTIZED \$@"
+   echo "'$1' $o -DGCC_IS_HYPNOTIZED \$@"
   } | sed \
    -e 's:^@:export :g' \
    -e "s>$b>$S/$b>g" \
@@ -218,6 +214,7 @@ hypnotize-gxx-too()
   local q=${1/ized.gcc/ized-gcc}
   ( mkdir -p "$q/include" ;  cd "$q/include"; ln -s "$i" $u ||
    die "failed to link g++ includes" )
+  sed -i "$cxx" -e "s>-DGCC_IS_HYPNOTIZED>-isystem '$q/include/$u' &>"
   # ... and bits/*.h
   w=bits/c++config.h
   i=$(equery f $cxx_p|fgrep $w|grep -v /32/bits|head -1)
