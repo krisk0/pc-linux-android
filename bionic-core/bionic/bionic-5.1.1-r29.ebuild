@@ -4,8 +4,8 @@
 
 EAPI=5
 
-# This package is very sensitive to compiler version (for instance, GCC 4.8.4
-#  does not work. You may however try to use any gcc or g++ >= 4.9.0:
+# This package is very sensitive to compiler and binutils version (for instance,
+#  GCC 4.8.4 does not work. You may however try to use any gcc or g++ >= 4.9.0:
 # CC=... CXX=...
 
 # If CC and/or CXX are unset, compilers gcc and g++ will be chosen
@@ -15,9 +15,9 @@ EAPI=5
 #  reports.
 
 #  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-# KNOWN-TO-WORK toold: sys-devel/gcc-4.9.3 installed from ebuild stamped
+# KNOWN-TO-WORK tools: sys-devel/gcc-4.9.3 installed from ebuild stamped
 #  Nov 2 2015; sys-devel/clang-3.5.0-r100 stamped 21 Feb 2015; 
-#  sys-devel/binutils-2.25 installed from 
+#  sys-devel/binutils-2.25 stamped 11 Aug.
 # Feel free to experiment but send your bug-reports to yourself
 #  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
@@ -27,7 +27,7 @@ EAPI=5
 #  that android-build subtree does not contain any NOTICE file.
 
 DESCRIPTION="64- and 32-bit bionic C libraries, crt*.o and linker*"
-# C++ library is to be built by another .ebuild
+
 HOMEPAGE=https://github.com/android/platform_bionic
 
 inherit toolchain-funcs befriend-gcc lunch-with-android
@@ -57,7 +57,7 @@ RESTRICT=mirror
 # clang and clang++ is used sometimes, instead of gcc or g++. Looks like there
 #  is a reason for this
 
-#
+# sys-devel/binutils-2.25-r1 do not work
 
 DEPEND='
  =sys-devel/binutils-2.25[multitarget]   
