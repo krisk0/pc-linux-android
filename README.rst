@@ -3,7 +3,7 @@ x86_64-pc-linux-android toolchain
 
 (including bionic library) can be compiled from source and installed as a native compiler on most amd64/Intel64 desktop running Linux, without using any propriety binary code. Just like uclibc toolchain can be brought to ``/usr/x86_64-pc-linux-uclibc`` via ``crossdev`` script.
 
-Ebuild scripts compiling and installing bionic library (``libc.so``, ``libm.so``, ...), dynamic interpreter ``/system/bin/linker`` and ``/system/bin/linker64`` are here since 19 Nov 2015; ``ld`` can link itself and ``as`` can assemble itself since 21 Nov; hypnotized g++ is slightly deficient; full-featured gcc/g++ will be here soon.
+Ebuild scripts compiling and installing bionic library (``libc.so``, ``libm.so``, ...), dynamic interpreter ``/system/bin/linker`` and ``/system/bin/linker64`` are here since 19 Nov 2015; ``ld`` can link itself and ``as`` can assemble itself since 21 Nov; hypnotized g++ proved himself worthy by compiling GMP; full-featured gcc/g++ will be here soon (as of today it refuses to build itself without STL).
 
 I prefer to get bug-reports via Github mechanism. If you want to teach me how to do something in an elegant or standard way, enclose a patch. If you report a bug, supply enough information for me to reproduce it.
 
