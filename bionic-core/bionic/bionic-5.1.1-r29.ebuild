@@ -15,8 +15,9 @@ EAPI=5
 #  reports.
 
 #  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-# KNOWN-TO-WORK compilers: sys-devel/gcc-4.9.3 installed from ebuild stamped
-#  Nov 2 2015; sys-devel/clang-3.5.0-r100 stamped 21 Feb 2015
+# KNOWN-TO-WORK toold: sys-devel/gcc-4.9.3 installed from ebuild stamped
+#  Nov 2 2015; sys-devel/clang-3.5.0-r100 stamped 21 Feb 2015; 
+#  sys-devel/binutils-2.25 installed from 
 # Feel free to experiment but send your bug-reports to yourself
 #  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
@@ -55,7 +56,11 @@ KEYWORDS=amd64
 RESTRICT=mirror
 # clang and clang++ is used sometimes, instead of gcc or g++. Looks like there
 #  is a reason for this
+
+#
+
 DEPEND='
+ =sys-devel/binutils-2.25[multitarget]   
  >=sys-devel/llvm-3.5[clang]
  >=sys-devel/gcc-4.9[cxx]
  bionic-core/binutils
@@ -65,7 +70,6 @@ DEPEND='
 # /system/bin/linker64 needs nothing except libraries installed by this package
 #  to run a program (theoretically). Thus this package has (technically
 #  speaking) no runtime dependencies
-RDEPEND=""
 SLOT=0
 # .mk scripts are covered by Apache-2.0 license; bionic source code by 2-clause
 #  BSD. Guess /system/bin/linker64 is under BSD-2?
