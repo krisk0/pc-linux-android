@@ -14,7 +14,7 @@ SRC_URI="$SRC_URI/archive/crystax-ndk-10.2.1.zip -> crystax-${PN}-10.2.1.zip"
 KEYWORDS=amd64
 IUSE="+stage0"
 RESTRICT=mirror
-use stage0 && SLOT=0 || SLOT=1
+SLOT=0
 
 DEPEND="
  stage0? ( || ( >=sys-devel/gcc-4.9 >=cross-x86_64-pc-linux-uclibc/gcc-4.9 ) )
@@ -27,7 +27,7 @@ DEPEND="
 # Concerning choice of GCC, see comment in jemalloc-*.ebuild.
 
 k=krisk0
-# Will use $p as fake prefix
+# Will use $p as fake prefix on stage0
 p=/tmp/n0.sUch.fIle.$k
 
 src_unpack()
@@ -71,23 +71,19 @@ src_configure()
   local h=x86_64-linux-gnu
   local i
   local j
-  use stage0 &&
+  use stage0 && 
    {
-    # cross-compilation
-    suffix=-stage0
+    suffix=-stage0 
     h="--target=${h/gnu/android} --host=$h --build=$h"
-    # create gold linker
-    local gold='--enable-gold --enable-gold=default'
-    local prefix=$p
-   } ||
+    prefix=$p
+   } \
+    ||
    {
-    # native compilation
     h=${h/gnu/android}
     h="--target=$h --host=$h --build=$h"
-    # compile error with hypnotized g++, disabling gold fixes it
-    local gold='--disable-gold'
-    local prefix="$EPREFIX/usr/x86_64-linux-android/libexec/${P}-stage1"
+    prefix=$EPREFIX/usr/x86_64-linux-android/libexec/${P}-stage1
    }
+  local gold='--enable-gold --enable-gold=default'
   # Tried to replace includes:
   #  export CFLAGS="$CFLAGS -nostdinc -isystem /usr/x86_64-linux-android/include"
   # This fails with message:
@@ -98,12 +94,12 @@ src_configure()
   CC=$(maybe-hypnotize-gcc)
   einfo "CC=$CC"
 
-  # if C compiler is hypnotized then we will run android executable which need
-  #  LD_LIBRARY_PATH
+  # if C compiler is hypnotized then we will run android executables that need
+  #  LD_LIBRARY_PATH to point to fake libsandbox.so
   local q=${CC/ized.gcc/ized-gcc}
   [ "$q" == "$CC" ] ||
    {
-    export LD_LIBRARY_PATH=$q/lib
+    export LD_LIBRARY_PATH="$q/lib"
 
     # ... and must provide header sys/procfs.h. The file describes ELF format
     #  for GDB and should be safe to include
@@ -152,19 +148,21 @@ src_configure()
     sed -i bits/os_defines.h -e 's:__GLIBC_PREREQ(2,15):0:g' ||
      die "patching GLIBC artefact failed"
     cd $S/$k
+    
+    # hypnotized g++ is unable to build gold version of binutils 
+    gold='--disable-gold'
    }
   ../configure \
    CC="$CC" \
    --prefix=$prefix \
    $h \
-   --enable-initfini-array --disable-nls \
+   --enable-initfini-array --disable-nls --disable-shared \
    --with-bugurl=https://github.com/$k/pc-linux-android \
    --disable-bootstrap --enable-plugins \
    --enable-libgomp --disable-libcilkrts --disable-libsanitizer \
    $gold   \
    --without-cloog --enable-eh-frame-hdr-for-static \
-   --program-suffix="$suffix" \
-   --disable-shared --disable-nls ||
+   --program-suffix="$suffix" ||
     die "configure failed, cwd=`pwd`"
  }
 
@@ -199,10 +197,10 @@ src_install()
     unset LD_LIBRARY_PATH
     emake DESTDIR="$ED" install
     # add some symlinks
-    local t="$ED/$EPREFIX/usr/x86_64-linux-android/bin"
+    local t="$ED/usr/x86_64-linux-android/bin"
     mkdir -p $t && cd $t || die "lost in time"
     local s=$(find .. -wholename *libexec/$PN*/bin -type d|grep -v x86_64)
-    [ -d $s ] || die "s=$s cwd=`pwd`; s is not directory"
+    [ -z "$s" ] && die "cwd=`pwd`; s is empty"
     local suffix=-stage1
     # bin/ path is too long, set some short-cuts
     for t in as ld ar nm objdump objcopy readelf ranlib; do
@@ -232,5 +230,5 @@ src_install()
     find . -type f -wholename '*/bin/ld.bfd' -delete || die "find malfunctions"
    }
   # save some bytes in /var/db/pkg/...
-  unset k p suffix
+  unset k p suffix prefix
  }
