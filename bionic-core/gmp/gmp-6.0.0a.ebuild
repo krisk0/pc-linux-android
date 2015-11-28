@@ -116,12 +116,15 @@ multilib_src_install_all()
    local so=$(find . -type f -name "lib$PN.so.*"|head -1)
    "$EPREFIX/usr/bin/strip" --strip-all "$so"
    so=$(dirname $so)
-   rm -f $so/*.la
+   find $so -type l -delete
+   einfo "after trimming $so contains files $(ls -l $so)"
    mv $so/* $p/lib64/
    mv include/$PN.h $p/include/
   ) || die "failed to find or move .so or .h"
   ls | grep -v $p | xargs rm -rf
-  unset emake ac_cv_host ac_build_alias CC CXX LDFLAGS QA_PRESTRIPPED
+  ( cd $p/lib64/ && rm -f *.la && mv lib$PN.so.* lib$PN.so ) || 
+   die "renaming .so failed"
+  unset emake ac_cv_host ac_build_alias CC CXX LDFLAGS
  }
 
 pkg_preinst() {
