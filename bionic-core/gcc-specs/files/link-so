@@ -1,10 +1,15 @@
 #!/bin/sh
 
-echo "link-so run with flags: $@"
+#echo "link-so run with flags: $@"
+
+# cut-off .x.y from -Wl,-soname,name.so.x.y
+a=$(echo $@|sed -r 's:(.*)(-Wl,-soname,.*?)\.so(\S+) (.*):\1 \2.so \4:')
+# cut-off .x.y from -Wl,-soname -Wl,name.so.x.y
+b=$(echo $a|sed -r 's:(.*)(-Wl,-soname +-Wl,.*?)\.so(\S+) (.*):\1 \2.so \4:')
 
 exec "$cxx_exe" \
  -mandroid -nostdinc -nostdlib \
  -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now \
  -Wl,--warn-shared-textrel -Wl,--gc-sections -Wl,--hash-style=sysv \
  -L$EPREFIX/system/lib64 -L$EPREFIX/usr/x86_64-linux-android/lib64 \
- $@
+ $b
