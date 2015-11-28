@@ -107,6 +107,7 @@ hypnotize-gcc()
   local spec="$EPREFIX/usr/x86_64-linux-android/share/gcc.specs"
   [ -s "$spec" ] || die "gcc.specs not found. Install bionic-core/gcc-specs"
   rm -rf $b ; mkdir -p $b/{lib,bin,libexec} || die "out of disk space on lib,"
+
   # populate bin
   cd $b/bin
   local o="$EPREFIX/usr/x86_64-linux-android/bin"
@@ -120,10 +121,12 @@ hypnotize-gcc()
   for i in $(ls "$donor") ; do
    ln -s $donor/$i
   done
+
   # populate libexec
   cd ../libexec ; mkdir gcc || die "out-of-space creating gcc"; cd gcc
   o=$("$1" -print-prog-name=liblto_plugin.so)
   cp -L "$o" . || die "plugin $o resists"
+
   # populate lib
   cd "$S/$b/lib"
   local donor=$("$1" -print-file-name=libgcc.a|
@@ -133,13 +136,14 @@ hypnotize-gcc()
   done
   # We already have libstdc++ in /system/lib64, don't overdoze
   rm -f libstdc++.*
-  o="-mandroid -specs='$spec' --sysroot=/no.such.file.$RANDOM.$PPID -nostdinc"
+  
+  o="-mandroid -D__ANDROID__"
+  o="$o -specs='$spec' --sysroot=/no.such.file.$RANDOM.$PPID -nostdinc"
   spec=$(dirname "$spec"|xargs dirname)/include
   o="$o -isystem '$spec' -isystem '$donor/include' -Wl,-L,/system/lib64 -pie"
   i=${b/-/.}
   # portage sets LD_PRELOAD=libsandbox.so; the library fails to load under
-  #  /system/bin/linker64; disabling sandbox does not work. To walk-around
-  #  this portage bug, create fake libsandbox.so
+  #  /system/bin/linker64; we create a fake .so that does nothing
   local dummy_sandbox=libsandbox
   export cxx_exe="$1"
   echo "//Walk-around libsandbox.so incompatibility problem" |
@@ -214,7 +218,7 @@ hypnotize-gxx-too()
   local q=${1/ized.gcc/ized-gcc}
   ( mkdir -p "$q/include" ;  cd "$q/include"; ln -s "$i" $u ||
    die "failed to link g++ includes" )
-  sed -i "$cxx" -e "s>-DGCC_IS_HYPNOTIZED>-isystem '$q/include/$u' &>"
+  sed -i "$cxx" -e "s>-DGCC_IS_HYPNOTIZED>& -isystem '$q/include/$u'>"
   # ... and bits/*.h
   w=bits/c++config.h
   i=$(equery f $cxx_p|fgrep $w|grep -v /32/bits|head -1)
@@ -223,7 +227,7 @@ hypnotize-gxx-too()
   u='more-friends-20151123'
   pushd "$q/include" >/dev/null
   mkdir -p $u; cd $u; cp -r "$i" . || die "failed to cp bits/ includes"
-  sed -i "$cxx" -e "s>-DGCC_IS_HYPNOTIZED>-isystem '$q/include/$u' &>"
+  sed -i "$cxx" -e "s>-DGCC_IS_HYPNOTIZED>& -isystem '$q/include/$u'>"
   # patch GLIBC-specific bits/os_defines.h
   sed -i bits/os_defines.h -e 's:__GLIBC_PREREQ(2,15):0:g' ||
    die "patching GLIBC artefact failed"
