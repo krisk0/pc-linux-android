@@ -16,8 +16,9 @@ EAPI=5
 
 #  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 # KNOWN-TO-WORK tools: sys-devel/gcc-4.9.3 installed from ebuild stamped
-#  Nov 2 2015; sys-devel/clang-3.5.0-r100 stamped 21 Feb 2015; 
-#  sys-devel/binutils-2.25 stamped 11 Aug.
+#  Nov 2 2015; sys-devel/clang-3.5.0-r100 stamped 21 Feb 2015;
+#  sys-devel/binutils-2.25 stamped 11 Aug 2015; sys-devel/binutils-2.24-r3 
+#  stamped 4 Nov 2014
 # Feel free to experiment but send your bug-reports to yourself
 #  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
@@ -57,10 +58,10 @@ RESTRICT=mirror
 # clang and clang++ is used sometimes, instead of gcc or g++. Looks like there
 #  is a reason for this
 
-# sys-devel/binutils-2.25-r1 do not work
+# sys-devel/binutils-2.25-r1 do not work. 2.25 and 2.24-r3 work
 
 DEPEND='
- =sys-devel/binutils-2.25[multitarget]   
+ <=sys-devel/binutils-2.25[multitarget]
  >=sys-devel/llvm-3.5[clang]
  >=sys-devel/gcc-4.9[cxx]
  bionic-core/binutils
@@ -297,10 +298,10 @@ src_compile()
   #  x86_64/@/STATIC_LIBRARIES/libcompiler_rt-extras_intermediates/ where @ is
   #  obj_x86 or obj. Do it without makefile, directly call clang then ar
   local ar="$my_root/bin/ar"
-  [ -x "$ar" ] || 
+  [ -x "$ar" ] ||
    {
     ar="$my_root/bin/ar-stage1"
-    [ -x "$ar" ] || 
+    [ -x "$ar" ] ||
      {
       ar="$my_root/bin/ar-stage0"
       [ -x "$ar" ] || die "failed to find ar executable"
@@ -367,9 +368,9 @@ QA_PRESTRIPPED="/system/lib.*"
 src_install()
  {
   # Android does not follow Linux directory convention
-  rm -rf "$ED/system"
+  rm -rf "$D/system"
   local i
-  mkdir -p "$ED/system/bin" || die "/system/$bin resists"
+  mkdir -p "$D/system/bin" || die "/system/$bin resists"
 
   # please those who have 32-bit x86 tablet and sym-limk lib32 as lib
   ( cd $ED/system; ln -s lib32 lib )
@@ -378,7 +379,7 @@ src_install()
   local j=0
   for i in $p/system/bin/li* ; do
    [ -f $i ] || continue
-   cp $i "$ED/system/bin/" || die "$i resists"
+   cp $i "$D/system/bin/" || die "$i resists"
    j=$((j+1))
   done
   [ $j == 0 ] && die "binary interpreters not found"
@@ -388,9 +389,9 @@ src_install()
   for i in $so; do
    local k=lib${i}.so
    j=$p/obj/lib/$k
-   cp_so_m $j "$ED/system/lib64"
+   cp_so_m $j "$D/system/lib64"
    j=$p/obj_x86/lib/$k
-   cp_so_m $j "$ED/system/lib32"
+   cp_so_m $j "$D/system/lib32"
   done
 
   # 5*2 compiler stubs
@@ -399,7 +400,7 @@ src_install()
    [ -z "$jj" ] && die "crt$i.o not found"
    for j in $jj ; do
     [ ${j/obj_x86/} == $j ] && k=lib64 || k=lib32
-    k="$ED/system/$k"
+    k="$D/system/$k"
     cp $j $k || die "compiler stub: cp $j $k failed"
    done
   done
