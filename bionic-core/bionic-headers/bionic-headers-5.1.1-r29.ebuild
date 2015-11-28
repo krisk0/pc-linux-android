@@ -101,4 +101,14 @@ src_install()
   for j in `find . -type f` ; do
    sed -e 's|/\* WARNING: .* \*/||g' -i $j
   done
+  
+  # File sys/stat.h is not POSIX.1.2008-compliant. Even worse, st_mtime is 
+  #  of type unsigned long but not time_t (which is signed long). This means
+  #  that code converting pointer to q->st_mtime to pointer to time_t such as
+  #  'localtime (&st->st_mtime)' fails to compile.
+  
+  # We don't make the header conform to POSIX.1.2008. We just make it so that
+  #  some POSIX-compliant programs (such as GCC) compile
+  sed -i $(find "$ED/$TGT" -type f -wholename '*/sys/stat.h') -e \
+   's:unsigned long st_mtime;:long st_mtime;:g'
  }
