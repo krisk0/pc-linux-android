@@ -24,7 +24,7 @@ KEYWORDS=amd64
 IUSE=""
 a=android
 SRC_URI="https://github.com/${a}-ia/platform_external_$PN/"
-SRC_URI="archive/${a}-5.1.0_r1-ia0.zip -> ${PN}-android-$PV.zip"
+SRC_URI="$SRC_URI/archive/${a}-5.1.0_r1-ia0.zip -> ${PN}-android-$PV.zip"
 RESTRICT=mirror
 
 MULTILIB_WRAPPED_HEADERS=( /usr/include/jemalloc/jemalloc.h )
