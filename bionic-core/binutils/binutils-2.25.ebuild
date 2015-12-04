@@ -7,13 +7,9 @@ inherit befriend-gcc
 HOMEPAGE=https://android.googlesource.com/toolchain/binutils
 DESCRIPTION="Binary code creation/manipulation utilities"
 LICENSE="|| ( GPL-3 LGPL-3 )"
-SRC_URI=https://github.com/crystax/android-toolchain-binutils
-# name crystax-ndk-10.2.1.zip is shared by gcc and binutils, so we rename:
-#  -ndk-  ->  -binutiuls-
-SRC_URI="$SRC_URI/archive/crystax-ndk-10.2.1.zip -> crystax-${PN}-10.2.1.zip"
+SRC_URI=mirror://gnu/binutils/binutils-$PV.tar.bz2
 KEYWORDS=amd64
 IUSE="+stage0"
-RESTRICT=mirror
 SLOT=0
 
 DEPEND="
@@ -30,17 +26,12 @@ k=krisk0
 # Will use $p as fake prefix on stage0
 p=/tmp/n0.sUch.fIle.$k
 
-src_unpack()
- {
-  default
-  d=`find . -type d -name $P`
-  [ -z $d ] && die "no $P inside .zip"
-  mv $d . || die "mv $P failed"
-  ls | grep -v $P | xargs rm -rf
- }
-
 src_prepare()
  {
+  # Make it approximately like android.googlesource.com/toolchain/binutils 
+  #  commit e1103f940633e91aff9c5e56070acab3b58fe0dc
+  patch -p1 < "$FILESDIR/${PV}-GNU-to-Android.patch.diff"
+  
   # ld stage0 should have no mind of his own and only be able to find libraries
   #  by paths set on command-line; it also must accept any sysroot from command-
   #  line and not panic when it is fake. Turning on sysroot at configure
@@ -51,6 +42,12 @@ src_prepare()
   # If you know how to create ld with properties described above without
   #  patching a C file, feel free to submit your patch to this ebuild at
   #  https://github.com/krisk0/pc-linux-android/issues
+  
+  # ld refuses to recognize options --no-gnu_unique and --no-gnu-unique.
+  #  We must stop ld from creating executables with STB_GNU_UNIQUE. We therefore
+  #  patch symver.cc to never write such attribute
+  sed -e 's:&&.!parameters->options().gnu_unique()::' -i gold/symtab.cc ||
+   die "symtab.cc resists"
  }
 
 maybe-hypnotize-gcc()
@@ -164,6 +161,7 @@ src_configure()
    --without-cloog --enable-eh-frame-hdr-for-static \
    --program-suffix="$suffix" ||
     die "configure failed, cwd=`pwd`"
+   # --disable-gnu-unique-object is not recognized by binutils
  }
 
 src_compile()
