@@ -104,6 +104,7 @@ hypnotize-gcc()
   pushd "$S" >/dev/null
   echo "Hypnotizing $1" 1>&2
   local b=hypnotized-gcc
+  local linker_home="$S/$b/bin"
   local spec="$EPREFIX/usr/x86_64-linux-android/share/gcc.specs"
   [ -s "$spec" ] || die "gcc.specs not found. Install bionic-core/gcc-specs"
   rm -rf $b ; mkdir -p $b/{lib,bin,libexec} || die "out of disk space on lib,"
@@ -126,11 +127,13 @@ hypnotize-gcc()
   cd ../libexec ; mkdir gcc || die "out-of-space creating gcc"; cd gcc
   o=$("$1" -print-prog-name=liblto_plugin.so)
   cp -L "$o" . || die "plugin $o resists"
+  # put 32-bit libgcc.a to libexec
+  cd ..; ln -s $("$1" -m32 -print-file-name=libgcc.a)
+  # ld message 'skipping incompatible .../lib/libgcc.a' is not a bug but feature
 
   # populate lib
   cd "$S/$b/lib"
-  local donor=$("$1" -print-file-name=libgcc.a|
-  xargs dirname)
+  local donor=$("$1" -print-file-name=libgcc.a|xargs dirname)
   for i in $(ls "$donor") ; do
    ln -s $donor/$i
   done
@@ -139,6 +142,10 @@ hypnotize-gcc()
   
   o="-mandroid -D__ANDROID__"
   o="$o -specs='$spec' --sysroot=/no.such.file.$RANDOM.$PPID -nostdinc"
+  # Force usage of our linker which is already in bin/ld
+  o="$o -B '$linker_home'"
+  # Don't use GNU unique binding
+  o="$o -fno-gnu-unique"
   spec=$(dirname "$spec"|xargs dirname)/include
   o="$o -isystem '$spec' -isystem '$donor/include' -Wl,-L,/system/lib64 -pie"
   i=${b/-/.}
@@ -157,9 +164,17 @@ hypnotize-gcc()
 
   {
    echo '#!/bin/sh'
+   echo 'u=$(echo "$@"|grep -c -- --print-multi-lib)'
+   echo '[ $u == 0 ] || { echo ".;" "32;@m32"; exit; }'
    echo "@GCC_EXEC_PREFIX='$b/libexec/gcc/has_cryptic_directory_structure'"
    echo "@LIBRARY_PATH='/system/lib64:$b/lib'"
    echo "@LD_LIBRARY_PATH='$b/lib'"
+   echo '[ -x "@BIN/ld" ] ||'
+   echo ' {'
+   echo '  echo "$0: where is my linker?" 1>&2'
+   echo '  echo "Put it into @BIN and call me again" 1>&2'
+   echo '  exit 1'
+   echo ' }'
    echo "@cxx_exe='$cxx_exe'"
    echo 's=$(echo "$@"|fgrep -c -- -Wl,-shared)'
    echo 'u=$(echo "$@"|fgrep -c -- -Wl,-soname)'
@@ -170,11 +185,12 @@ hypnotize-gcc()
    -e 's:^@:export :g' \
    -e "s>$b>$S/$b>g" \
    > $i
+  sed -i $i -e "s>@BIN>$linker_home>g"
   chmod +x $i
 
   # the executable will print the name of its creator
   ( printf '#include <stdio.h>\nint main() { printf("@"); return 0; }' |
-   sed "s:@:$S/$i:" | ./$i -xc - -O3 -v -ohello_world.exe ) ||
+   sed "s:@:$S/$i:" | ./$i -xc - -O3 -ohello_world.exe ) ||
     die "hypnosis failed"
   # good thing linker64 does not care about /usr/lib64 but respects
   #  LD_LIBRARY_PATH
