@@ -22,9 +22,7 @@ DESCRIPTION="GMP library needed to compile GCC"
 HOMEPAGE="http://gmplib.org/"
 SRC_URI="mirror://gnu/${PN}/${MY_P}.tar.xz
  ftp://ftp.gmplib.org/pub/${MY_P}/${MY_P}.tar.xz"
-QA_PRESTRIPPED="usr/x86_64-linux-android/lib64/*"
-# For unclear reason 'QA Notice: Pre-stripped files found' complaint
-#  does not go away
+QA_PRESTRIPPED="usr/x86_64-linux-android/lib64/.*"
 
 LICENSE="|| ( LGPL-3+ GPL-2+ )"
 SLOT=0
