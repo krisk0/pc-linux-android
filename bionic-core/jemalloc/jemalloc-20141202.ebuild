@@ -53,9 +53,8 @@ src_prepare()
   eautoconf
  }
 
-# String QA_CONF... below is supposed to silence a portage warning, but it does
-#  not. Nevertheless let it be here
-QA_CONFIGURE_OPTIONS="--enable-static --disable-static --enable-shared --disable-shared"
+QA_CONFIGURE_OPTIONS="--enable-static --disable-static --enable-shared
+ --disable-shared"
 src_configure()
  {
   # valgrind.c not compiled when building android'ish jemalloc via mma
@@ -74,7 +73,7 @@ src_configure()
   f="$f -Werror=non-virtual-dtor -Werror=address -Werror=sequence-point"
   f="$f -fno-strict-aliasing -DNDEBUG -UDEBUG -std=gnu99"
   f="$f -Wno-array-bounds -D__NO_STRING_INLINES -isystem \"$S/src\""
-  f="$f -Wno-unused-parameter -DANDROID_ALWAYS_PURGE"
+  f="$f -Wno-unused-parameter -DANDROID_ALWAYS_PURGE -fno-gnu-unique"
   f="$f -DANDROID_MAX_ARENAS=2 -DANDROID_TCACHE_NSLOTS_SMALL_MAX=8"
   f="$f -DANDROID_TCACHE_NSLOTS_LARGE=16 -DANDROID_LG_TCACHE_MAXCLASS_DEFAULT=16"
   
@@ -91,6 +90,10 @@ src_configure()
 src_install()
  {
   autotools-multilib_src_install
+  
+  # TODO: 
+  #  a) should (could) the 2 libraries be stripped?
+  #  b) strip options (--strip-all, --strip-unneeded)?
 
   # clean
   cd "$ED" || die "failed to chdir to $ED"
@@ -127,6 +130,5 @@ src_install()
   done
   rm -rf share include bin
 
-  # Difference from AOSP build: -g not used; strip applied;
-  #  _FORTIFY_SOURCE=0 not 2
+  # Difference from AOSP build: -g not used; _FORTIFY_SOURCE=0 not 2
  }
