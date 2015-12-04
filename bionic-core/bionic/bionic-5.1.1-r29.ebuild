@@ -80,7 +80,7 @@ S="$WORKDIR" # $S == $WORKDIR == $ANDROID_BUILD_TOP
 
 src_unpack()
  {
-  rm -rf *
+  [ -z "$LD_PRELOAD"] || die "Sorry, this .ebuild does not support sandbox"
   default
   einfo "unpacked .zip total weight: $(du -sh .)"
 
@@ -250,12 +250,27 @@ src_prepare()
 
   # skip death on Java check failure
   sed -i build/core/main.mk \
-   -e 's:\$(error stop)::g' \
+   -e 's:\$(error stop)::g' ||
     die "build/core/main.mk resists"
 
   # use standard cp not acp
   sed -i build/core/config.mk -e "s+ACP := .*+ACP := $(which cp)+g" ||
    die "ACP resists"
+  
+  # linker64 ignores rpath. In order to find libraries during gcc build process,
+  #  hard-code our library path
+  local tgt="$EPPREFIX/$TGT"
+  # 2 slashes in a row look ugly
+  ([ "$EPREFIX" == / ] || [ -z "$EPREFIX" ] ) && tgt="$TGT"
+  echo EPREFIX=$EPREFIX
+  echo TGT=$TGT
+  sed -i bionic/linker/linker.cpp \
+   -e "s:/vendor/lib64\":$tgt/lib64\":" \
+   -e "s:/vendor/lib\":$tgt/lib32\":" ||
+    die "vendor/lib resists"
+    
+  # un-hide compiler flags 
+  #find . -iname '*.mk' | xargs sed -e 's:$(hide) ::g' -i
  }
 
 clang_mulodi4()
@@ -368,9 +383,9 @@ QA_PRESTRIPPED="/system/lib.*"
 src_install()
  {
   # Android does not follow Linux directory convention
-  rm -rf "$D/system"
+  rm -rf "$ED/system"
   local i
-  mkdir -p "$D/system/bin" || die "/system/$bin resists"
+  mkdir -p "$ED/system/bin" || die "/system/$bin resists"
 
   # please those who have 32-bit x86 tablet and sym-limk lib32 as lib
   ( cd $ED/system; ln -s lib32 lib )
@@ -379,7 +394,7 @@ src_install()
   local j=0
   for i in $p/system/bin/li* ; do
    [ -f $i ] || continue
-   cp $i "$D/system/bin/" || die "$i resists"
+   cp $i "$ED/system/bin/" || die "$i resists"
    j=$((j+1))
   done
   [ $j == 0 ] && die "binary interpreters not found"
@@ -389,9 +404,9 @@ src_install()
   for i in $so; do
    local k=lib${i}.so
    j=$p/obj/lib/$k
-   cp_so_m $j "$D/system/lib64"
+   cp_so_m $j "$ED/system/lib64"
    j=$p/obj_x86/lib/$k
-   cp_so_m $j "$D/system/lib32"
+   cp_so_m $j "$ED/system/lib32"
   done
 
   # 5*2 compiler stubs
@@ -400,7 +415,7 @@ src_install()
    [ -z "$jj" ] && die "crt$i.o not found"
    for j in $jj ; do
     [ ${j/obj_x86/} == $j ] && k=lib64 || k=lib32
-    k="$D/system/$k"
+    k="$ED/system/$k"
     cp $j $k || die "compiler stub: cp $j $k failed"
    done
   done
