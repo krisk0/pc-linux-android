@@ -1,0 +1,4181 @@
+Copyright (C) 2015 The Android Open Source Project
+License: GPL-2
+
+After applying the patches libstdc++ subdirectory becomes exactly like the one
+ found in https://android.googlesource.com/toolchain/gcc 20 Nov 2015, except
+ testsuite
+
+commit id: 969c2e570500ecc6d091784950f52d0cc6637809
+
+diff -urN ./acinclude.m4 ../google/libstdc++-v3/acinclude.m4
+--- ./acinclude.m4	2014-01-26 15:23:07.000000000 +0400
++++ ../google/libstdc++-v3/acinclude.m4	2015-11-30 10:46:40.664488667 +0300
+@@ -2647,10 +2647,16 @@
+ }
+ EOF
+ 
++    AH_VERBATIM([_GLIBCXX_USE_FLOAT128,],
++                [/* Define if __float128 is supported on this host.
++   Hide all uses of __float128 from Clang.  Google ref b/6422845  */
++#ifndef __clang__
++#undef _GLIBCXX_USE_FLOAT128
++#endif])
++
+     AC_MSG_CHECKING([for __float128])
+     if AC_TRY_EVAL(ac_compile); then
+-      AC_DEFINE(_GLIBCXX_USE_FLOAT128, 1,
+-      [Define if __float128 is supported on this host.])
++      AC_DEFINE(_GLIBCXX_USE_FLOAT128, 1)
+       enable_float128=yes
+     else
+       enable_float128=no
+@@ -3590,9 +3596,15 @@
+ 		[ac_cv_x86_rdrand=yes], [ac_cv_x86_rdrand=no])
+   esac
+   ])
++  AH_VERBATIM([_GLIBCXX_X86_RDRAND,],
++              [/* Defined if as can handle rdrand.
++   Disable when building with Clang.  Google ref b/8680429 */
++#ifndef __clang__
++#undef _GLIBCXX_X86_RDRAND
++#endif])
++
+   if test $ac_cv_x86_rdrand = yes; then
+-    AC_DEFINE(_GLIBCXX_X86_RDRAND, 1,
+-		[ Defined if as can handle rdrand. ])
++    AC_DEFINE(_GLIBCXX_X86_RDRAND, 1)
+   fi
+   AC_MSG_RESULT($ac_cv_x86_rdrand)
+ ])
+diff -urN ./ChangeLog ../google/libstdc++-v3/ChangeLog
+--- ./ChangeLog	2014-10-30 11:25:22.000000000 +0300
++++ ../google/libstdc++-v3/ChangeLog	2015-11-30 10:46:40.644488667 +0300
+@@ -1,3 +1,156 @@
++2015-01-19  Tim Shen  <timshen@google.com>
++
++	PR libstdc++/64649
++	Backported from mainline
++	2015-01-19  Tim Shen  <timshen@google.com>
++
++	* include/bits/regex.tcc (regex_traits<>::lookup_collatename,
++	regex_traits<>::lookup_classname): Support forward iterators.
++	* testsuite/28_regex/traits/char/lookup_classname.cc: New testcases.
++	* testsuite/28_regex/traits/char/lookup_collatename.cc: New testcase.
++
++2015-01-19  Tim Shen  <timshen@google.com>
++
++	PR libstdc++/64584
++	PR libstdc++/64585
++	* include/bits/regex.h (basic_regex<>::basic_regex,
++	basic_regex<>::assign, basic_regex<>::imbue,
++	basic_regex<>::swap, basic_regex<>::mark_count): Drop NFA after
++	imbuing basic_regex; Make assign() transactional against exception.
++	* testsuite/28_regex/basic_regex/assign/char/string.cc: New testcase.
++	* testsuite/28_regex/basic_regex/imbue/string.cc: New testcase.
++
++2015-01-18  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/64646
++	* include/bits/stl_algo.h (__is_permutation): Also test for reaching
++	end of the second range.
++	* testsuite/25_algorithms/is_permutation/64646.cc: New.
++
++2015-01-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/64476
++	* include/bits/stl_uninitialized.h (uninitialized_copy): Fix
++	is_assignable arguments.
++	* testsuite/20_util/specialized_algorithms/uninitialized_copy/64476.cc:
++	New.
++
++2015-01-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/60966
++	* include/std/future (packaged_task::operator()): Increment the
++	reference count on the shared state until the function returns.
++
++2015-01-09  Tim Shen  <timshen@google.com>
++
++	PR libstdc++/64239
++	Backported form mainline
++	2015-01-09  Tim Shen  <timshen@google.com>
++
++	* include/bits/regex.h (match_results<>::swap): Use std::swap
++	instead of swap.
++	* include/bits/regex_compiler.tcc (_Compiler<>::_M_quantifier):
++	Likewise.
++	* testsuite/28_regex/match_results/swap.cc: New testcase.
++
++2014-12-17  Tim Shen  <timshen@google.com>
++
++	PR libstdc++/64302
++	PR libstdc++/64303
++	Backported form mainline
++	2014-12-17  Tim Shen  <timshen@google.com>
++
++	* include/bits/regex.h (match_results::cbegin, match_results::cend,
++	regex_token_iterator::regex_token_iterator,
++	regex_token_iterator::_M_normalize_result): Fix match_results cbegin
++	and cend and regex_token_iterator::_M_result invariant.
++	* include/bits/regex.tcc: Fix regex_token_iterator::_M_result invariant.
++	* testsuite/28_regex/iterators/regex_token_iterator/64303.cc: Testcase.
++
++2014-12-13  Tim Shen  <timshen@google.com>
++
++	PR libstdc++/64239
++	* include/bits/regex.h (match_results<>::match_results,
++	match_results<>::operator=, match_results<>::position,
++	match_results<>::swap): Fix ctor/assign/swap.
++	* include/bits/regex.tcc: (__regex_algo_impl<>,
++	regex_iterator<>::operator++): Set match_results::_M_begin as
++	"start position".
++	* testsuite/28_regex/iterators/regex_iterator/char/
++	string_position_01.cc: Test cases.
++
++2014-12-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/64203
++	* include/std/shared_mutex: Fix preprocessor conditions.
++	* testsuite/experimental/feat-cxx14.cc: Check conditions.
++
++2014-12-06  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/63840
++	* include/std/functional (function::function(const function&)): Set
++	_M_manager after operations that might throw.
++	* include/tr1/functional (function::function(const function&),
++	function::function(_Functor, _Useless)): Likewise.
++	* testsuite/20_util/function/63840.cc: New.
++	* testsuite/tr1/3_function_objects/function/63840.cc: New.
++
++	PR libstdc++/61947
++	* include/std/tuple (_Head_base): Use allocator_arg_t parameters to
++	disambiguate unary constructors.
++	(_Tuple_impl): Pass allocator_arg_t arguments.
++	* testsuite/20_util/tuple/61947.cc: New.
++	* testsuite/20_util/uses_allocator/cons_neg.cc: Adjust dg-error line.
++
++2014-12-06  Tim Shen  <timshen@google.com>
++
++	PR libstdc++/64140
++	Backport form mainline
++	2014-12-04  Tim Shen  <timshen@google.com>
++
++	* include/bits/regex.tcc (regex_iterator<>::operator++): Update
++	prefix.matched after modifying prefix.first.
++	* testsuite/28_regex/iterators/regex_iterator/char/64140.cc: New
++	testcase.
++
++2014-12-02  Matthias Klose  <doko@ubuntu.com>
++
++	PR libstdc++/64103
++	Backport from mainline
++	2014-11-03  Paolo Carlini  <paolo.carlini@oracle.com>
++
++	* include/parallel/algo.h: Do not use default arguments in function
++	template redeclarations (definitions).
++
++	2014-11-04  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/parallel/numeric.h: Do not use default arguments in function
++	template redeclarations (definitions).
++
++2014-11-28  Tim Shen  <timshen@google.com>
++
++	PR libstdc++/63497
++	* include/bits/regex_executor.tcc (_Executor::_M_dfs,
++	_Executor::_M_word_boundary): Avoid dereferecing _M_current at _M_end
++	or other invalid position.
++
++2014-11-13  Thomas Preud'homme  <thomas.preudhomme@arm.com>
++
++	Backport from mainline
++	2014-09-10  Tony Wang  <tony.wang@arm.com>
++
++	PR target/56846
++	* libsupc++/eh_personality.cc (PERSONALITY_FUNCTION):
++	Return with CONTINUE_UNWINDING when the state pattern
++	contains: _US_VIRTUAL_UNWIND_FRAME | _US_FORCE_UNWIND
++
++2014-10-30  David Edelsohn  <dje.gcc@gmail.com>
++
++	Backported from mainline.
++	2014-10-30  David Edelsohn  <dje.gcc@gmail.com>
++
++	* configure.host (aix4.3+, 5+): Do not use -G in link command.
++
+ 2014-10-30  Release Manager
+ 
+ 	* GCC 4.9.2 released.
+diff -urN ./config/abi/post/x86_64-linux-gnu/32/baseline_symbols.txt ../google/libstdc++-v3/config/abi/post/x86_64-linux-gnu/32/baseline_symbols.txt
+--- ./config/abi/post/x86_64-linux-gnu/32/baseline_symbols.txt	2014-03-24 23:48:12.000000000 +0400
++++ ../google/libstdc++-v3/config/abi/post/x86_64-linux-gnu/32/baseline_symbols.txt	2015-11-30 10:46:40.664488667 +0300
+@@ -2465,6 +2465,7 @@
+ FUNC:_ZdaPvRKSt9nothrow_t@@GLIBCXX_3.4
+ FUNC:_ZdlPv@@GLIBCXX_3.4
+ FUNC:_ZdlPvRKSt9nothrow_t@@GLIBCXX_3.4
++FUNC:_ZdlPvj@@GLIBCXX_3.4.18
+ FUNC:_Znaj@@GLIBCXX_3.4
+ FUNC:_ZnajRKSt9nothrow_t@@GLIBCXX_3.4
+ FUNC:_Znwj@@GLIBCXX_3.4
+@@ -3671,3 +3672,5 @@
+ OBJECT:8:_ZTTSo@@GLIBCXX_3.4
+ OBJECT:8:_ZTTSt13basic_istreamIwSt11char_traitsIwEE@@GLIBCXX_3.4
+ OBJECT:8:_ZTTSt13basic_ostreamIwSt11char_traitsIwEE@@GLIBCXX_3.4
++TLS:4:_ZSt11__once_call@@GLIBCXX_3.4.11
++TLS:4:_ZSt15__once_callable@@GLIBCXX_3.4.11
+diff -urN ./config/abi/post/x86_64-linux-gnu/baseline_symbols.txt ../google/libstdc++-v3/config/abi/post/x86_64-linux-gnu/baseline_symbols.txt
+--- ./config/abi/post/x86_64-linux-gnu/baseline_symbols.txt	2014-03-24 23:48:12.000000000 +0400
++++ ../google/libstdc++-v3/config/abi/post/x86_64-linux-gnu/baseline_symbols.txt	2015-11-30 10:46:40.674488667 +0300
+@@ -2465,6 +2465,7 @@
+ FUNC:_ZdaPvRKSt9nothrow_t@@GLIBCXX_3.4
+ FUNC:_ZdlPv@@GLIBCXX_3.4
+ FUNC:_ZdlPvRKSt9nothrow_t@@GLIBCXX_3.4
++FUNC:_ZdlPvm@@GLIBCXX_3.4.18
+ FUNC:_Znam@@GLIBCXX_3.4
+ FUNC:_ZnamRKSt9nothrow_t@@GLIBCXX_3.4
+ FUNC:_Znwm@@GLIBCXX_3.4
+diff -urN ./config/abi/pre/gnu.ver ../google/libstdc++-v3/config/abi/pre/gnu.ver
+--- ./config/abi/pre/gnu.ver	2014-03-14 22:10:59.000000000 +0400
++++ ../google/libstdc++-v3/config/abi/pre/gnu.ver	2015-11-30 10:46:40.674488667 +0300
+@@ -1333,6 +1333,9 @@
+     # std::this_thread::__sleep_for
+     _ZNSt11this_thread11__sleep_for*;
+ 
++    # operator delete(void*, , unsigned long)
++    _ZdlPv[jmy];
++
+     # std::bad_function_call::what()
+     _ZNKSt17bad_function_call4whatEv;
+ 
+diff -urN ./config/locale/generic/c_locale.cc ../google/libstdc++-v3/config/locale/generic/c_locale.cc
+--- ./config/locale/generic/c_locale.cc	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/config/locale/generic/c_locale.cc	2015-11-30 10:46:40.674488667 +0300
+@@ -51,10 +51,18 @@
+     {
+       // Assumes __s formatted for "C" locale.
+       char* __old = setlocale(LC_ALL, 0);
+-      const size_t __len = strlen(__old) + 1;
+-      char* __sav = new char[__len];
+-      memcpy(__sav, __old, __len);
+-      setlocale(LC_ALL, "C");
++      char* __sav = 0;
++#if defined (__ANDROID__)
++      if (__old)
++        {
++#endif
++          const size_t __len = strlen(__old) + 1;
++          __sav = new char[__len];
++          memcpy(__sav, __old, __len);
++          setlocale(LC_ALL, "C");
++#if defined (__ANDROID__)
++        }
++#endif
+       char* __sanity;
+       bool __overflow = false;
+ 
+@@ -116,10 +124,18 @@
+     {
+       // Assumes __s formatted for "C" locale.
+       char* __old = setlocale(LC_ALL, 0);
+-      const size_t __len = strlen(__old) + 1;
+-      char* __sav = new char[__len];
+-      memcpy(__sav, __old, __len);
+-      setlocale(LC_ALL, "C");
++      char* __sav = 0;
++#if defined (__ANDROID__)
++      if (__old)
++        {
++#endif
++          const size_t __len = strlen(__old) + 1;
++          __sav = new char[__len];
++          memcpy(__sav, __old, __len);
++          setlocale(LC_ALL, "C");
++#if defined (__ANDROID__)
++        }
++#endif
+       char* __sanity;
+ 
+ #if !__DBL_HAS_INFINITY__
+@@ -161,10 +177,18 @@
+     {
+       // Assumes __s formatted for "C" locale.
+       char* __old = setlocale(LC_ALL, 0);
+-      const size_t __len = strlen(__old) + 1;
+-      char* __sav = new char[__len];
+-      memcpy(__sav, __old, __len);
+-      setlocale(LC_ALL, "C");
++      char* __sav = 0;
++#if defined (__ANDROID__)
++      if (__old)
++        {
++#endif
++          const size_t __len = strlen(__old) + 1;
++          __sav = new char[__len];
++          memcpy(__sav, __old, __len);
++          setlocale(LC_ALL, "C");
++#if defined (__ANDROID__)
++        }
++#endif
+ 
+ #if !__LDBL_HAS_INFINITY__
+       errno = 0;
+diff -urN ./config/locale/generic/c_locale.h ../google/libstdc++-v3/config/locale/generic/c_locale.h
+--- ./config/locale/generic/c_locale.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/config/locale/generic/c_locale.h	2015-11-30 10:46:40.674488667 +0300
+@@ -59,13 +59,20 @@
+   {
+     char* __old = std::setlocale(LC_NUMERIC, 0);
+     char* __sav = 0;
+-    if (__builtin_strcmp(__old, "C"))
+-      {
+-	const size_t __len = __builtin_strlen(__old) + 1;
+-	__sav = new char[__len];
+-	__builtin_memcpy(__sav, __old, __len);
+-	std::setlocale(LC_NUMERIC, "C");
++#if defined (__ANDROID__)
++    if (__old)
++      { 
++#endif
++        if (__builtin_strcmp(__old, "C"))
++          {
++            const size_t __len = __builtin_strlen(__old) + 1;
++            __sav = new char[__len];
++            __builtin_memcpy(__sav, __old, __len);
++            std::setlocale(LC_NUMERIC, "C");
++          }
++#if defined (__ANDROID__)
+       }
++#endif
+ 
+     __builtin_va_list __args;
+     __builtin_va_start(__args, __fmt);
+diff -urN ./config/locale/generic/time_members.cc ../google/libstdc++-v3/config/locale/generic/time_members.cc
+--- ./config/locale/generic/time_members.cc	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/config/locale/generic/time_members.cc	2015-11-30 10:46:40.674488667 +0300
+@@ -44,10 +44,18 @@
+ 	   const tm* __tm) const throw()
+     {
+       char* __old = setlocale(LC_ALL, 0);
+-      const size_t __llen = strlen(__old) + 1;
+-      char* __sav = new char[__llen];
+-      memcpy(__sav, __old, __llen);
+-      setlocale(LC_ALL, _M_name_timepunct);
++      char* __sav = 0;
++#if defined (__ANDROID__)
++      if (__old)
++        {
++#endif
++          const size_t __llen = strlen(__old) + 1;
++          __sav = new char[__llen];
++          memcpy(__sav, __old, __llen);
++          setlocale(LC_ALL, _M_name_timepunct);
++#if defined (__ANDROID__)
++        }
++#endif
+       const size_t __len = strftime(__s, __maxlen, __format, __tm);
+       setlocale(LC_ALL, __sav);
+       delete [] __sav;
+@@ -129,10 +137,18 @@
+ 	   const tm* __tm) const throw()
+     {
+       char* __old = setlocale(LC_ALL, 0);
+-      const size_t __llen = strlen(__old) + 1;
+-      char* __sav = new char[__llen];
+-      memcpy(__sav, __old, __llen);
+-      setlocale(LC_ALL, _M_name_timepunct);
++      char* __sav = 0;
++#if defined (__ANDROID__)
++      if (__old)
++        {
++#endif
++          const size_t __llen = strlen(__old) + 1;
++          __sav = new char[__llen];
++          memcpy(__sav, __old, __llen);
++          setlocale(LC_ALL, _M_name_timepunct);
++#if defined (__ANDROID__)
++        }
++#endif
+       const size_t __len = wcsftime(__s, __maxlen, __format, __tm);
+       setlocale(LC_ALL, __sav);
+       delete [] __sav;
+diff -urN ./config/os/bionic/ctype_base.h ../google/libstdc++-v3/config/os/bionic/ctype_base.h
+--- ./config/os/bionic/ctype_base.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/config/os/bionic/ctype_base.h	2015-11-30 10:46:40.674488667 +0300
+@@ -30,6 +30,22 @@
+ 
+ // Support for Solaris 2.5.1
+ 
++#if defined (__ANDROID__)
++#if !defined(_U)
++#if !defined(_CTYPE_U)
++#error Bionic header ctype.h does not define either _U nor _CTYPE_U
++#endif
++#define _U _CTYPE_U
++#define _L _CTYPE_L
++#define _N _CTYPE_N
++#define _S _CTYPE_S
++#define _P _CTYPE_P
++#define _C _CTYPE_C
++#define _X _CTYPE_X
++#define _B _CTYPE_B
++#endif
++#endif /* __ANDROID__ */
++
+ namespace std _GLIBCXX_VISIBILITY(default)
+ {
+ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+diff -urN ./config.h.in ../google/libstdc++-v3/config.h.in
+--- ./config.h.in	2014-01-24 01:17:15.000000000 +0400
++++ ../google/libstdc++-v3/config.h.in	2015-11-30 10:46:40.664488667 +0300
+@@ -824,8 +824,11 @@
+    this host. */
+ #undef _GLIBCXX_USE_DECIMAL_FLOAT
+ 
+-/* Define if __float128 is supported on this host. */
++/* Define if __float128 is supported on this host.
++   Hide all uses of __float128 from Clang.  Google ref b/6422845  */
++#ifndef __clang__
+ #undef _GLIBCXX_USE_FLOAT128
++#endif
+ 
+ /* Defined if gettimeofday is available. */
+ #undef _GLIBCXX_USE_GETTIMEOFDAY
+@@ -876,8 +879,11 @@
+ /* Define to 1 if a verbose library is built, or 0 otherwise. */
+ #undef _GLIBCXX_VERBOSE
+ 
+-/* Defined if as can handle rdrand. */
++/* Defined if as can handle rdrand.
++   Disable when building with Clang.  Google ref b/8680429 */
++#ifndef __clang__
+ #undef _GLIBCXX_X86_RDRAND
++#endif
+ 
+ /* Define to 1 if mutex_timedlock is available. */
+ #undef _GTHREAD_USE_MUTEX_TIMEDLOCK
+diff -urN ./configure ../google/libstdc++-v3/configure
+--- ./configure	2014-03-20 22:57:07.000000000 +0400
++++ ../google/libstdc++-v3/configure	2015-11-30 10:46:40.674488667 +0300
+@@ -645,6 +645,7 @@
+ GLIBCXX_LDBL_COMPAT_TRUE
+ ENABLE_VISIBILITY_FALSE
+ ENABLE_VISIBILITY_TRUE
++libtool_version_info_string
+ libtool_VERSION
+ ENABLE_SYMVERS_SUN_FALSE
+ ENABLE_SYMVERS_SUN_TRUE
+@@ -8100,7 +8101,22 @@
+ 
+ # Check whether --with-pic was given.
+ if test "${with_pic+set}" = set; then :
+-  withval=$with_pic; pic_mode="$withval"
++  withval=$with_pic; p=${PACKAGE-default}
++    case "$withval" in
++    yes|no) pic_mode="$withval" ;;
++    *)
++      pic_mode=default
++      # Look at the argument we got.  We use all the common list separators.
++      lt_save_ifs="$IFS"; IFS="${IFS}$PATH_SEPARATOR,"
++      for pkg in $withval; do
++	IFS="$lt_save_ifs"
++	if test "X$pkg" = "X$p"; then
++	  pic_mode=yes
++	fi
++      done
++      IFS="$lt_save_ifs"
++      ;;
++    esac
+ else
+   pic_mode=default
+ fi
+@@ -11526,7 +11542,7 @@
+   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
+   lt_status=$lt_dlunknown
+   cat > conftest.$ac_ext <<_LT_EOF
+-#line 11529 "configure"
++#line 11544 "configure"
+ #include "confdefs.h"
+ 
+ #if HAVE_DLFCN_H
+@@ -11632,7 +11648,7 @@
+   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
+   lt_status=$lt_dlunknown
+   cat > conftest.$ac_ext <<_LT_EOF
+-#line 11635 "configure"
++#line 11650 "configure"
+ #include "confdefs.h"
+ 
+ #if HAVE_DLFCN_H
+@@ -15052,7 +15068,7 @@
+     #
+     # Fake what AC_TRY_COMPILE does.  XXX Look at redoing this new-style.
+     cat > conftest.$ac_ext << EOF
+-#line 15055 "configure"
++#line 15070 "configure"
+ struct S { ~S(); };
+ void bar();
+ void foo()
+@@ -15404,7 +15420,7 @@
+   # Fake what AC_TRY_COMPILE does.
+ 
+     cat > conftest.$ac_ext << EOF
+-#line 15407 "configure"
++#line 15420 "configure"
+ int main()
+ {
+   typedef bool atomic_type;
+@@ -15439,7 +15455,7 @@
+     rm -f conftest*
+ 
+     cat > conftest.$ac_ext << EOF
+-#line 15442 "configure"
++#line 15455 "configure"
+ int main()
+ {
+   typedef short atomic_type;
+@@ -15474,7 +15490,7 @@
+     rm -f conftest*
+ 
+     cat > conftest.$ac_ext << EOF
+-#line 15477 "configure"
++#line 15490 "configure"
+ int main()
+ {
+   // NB: _Atomic_word not necessarily int.
+@@ -15510,7 +15526,7 @@
+     rm -f conftest*
+ 
+     cat > conftest.$ac_ext << EOF
+-#line 15513 "configure"
++#line 15526 "configure"
+ int main()
+ {
+   typedef long long atomic_type;
+@@ -15589,7 +15605,7 @@
+   # unnecessary for this test.
+ 
+     cat > conftest.$ac_ext << EOF
+-#line 15592 "configure"
++#line 15605 "configure"
+ int main()
+ {
+   _Decimal32 d1;
+@@ -15631,7 +15647,7 @@
+   # unnecessary for this test.
+ 
+     cat > conftest.$ac_ext << EOF
+-#line 15634 "configure"
++#line 15647 "configure"
+ template<typename T1, typename T2>
+   struct same
+   { typedef T2 type; };
+@@ -15665,7 +15681,7 @@
+     rm -f conftest*
+ 
+     cat > conftest.$ac_ext << EOF
+-#line 15668 "configure"
++#line 15681 "configure"
+ template<typename T1, typename T2>
+   struct same
+   { typedef T2 type; };
+@@ -15680,6 +15696,8 @@
+ }
+ EOF
+ 
++
++
+     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for __float128" >&5
+ $as_echo_n "checking for __float128... " >&6; }
+     if { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_compile\""; } >&5
+@@ -15687,8 +15705,7 @@
+   ac_status=$?
+   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+   test $ac_status = 0; }; then
+-
+-$as_echo "#define _GLIBCXX_USE_FLOAT128 1" >>confdefs.h
++      $as_echo "#define _GLIBCXX_USE_FLOAT128 1" >>confdefs.h
+ 
+       enable_float128=yes
+     else
+@@ -77192,6 +77209,12 @@
+ /* end confdefs.h.  */
+ #include <sys/syscall.h>
+ 	   int lk;
++#if !defined(SYS_gettid)
++#define SYS_gettid __NR_gettid
++#endif
++#if !defined(SYS_futex)
++#define SYS_futex __NR_futex
++#endif
+ int
+ main ()
+ {
+@@ -77250,6 +77273,12 @@
+ /* end confdefs.h.  */
+ #include <sys/syscall.h>
+ 	   int lk;
++#if !defined(SYS_gettid)
++#define SYS_gettid __NR_gettid
++#endif
++#if !defined(SYS_futex)
++#define SYS_futex __NR_futex
++#endif
+ int
+ main ()
+ {
+@@ -78086,6 +78115,10 @@
+ $as_echo "$glibcxx_ptrdiff_t_is_i" >&6; }
+ 
+ 
++case "$target" in
++    *android*) libtool_version_info_string="-avoid-version" ;;
++    *) libtool_version_info_string="-version-info $libtool_VERSION"
++esac
+ 
+ 
+  # Check whether --enable-libstdcxx-visibility was given.
+@@ -78254,9 +78287,10 @@
+ 
+ fi
+ 
+-  if test $ac_cv_x86_rdrand = yes; then
+ 
+-$as_echo "#define _GLIBCXX_X86_RDRAND 1" >>confdefs.h
++
++  if test $ac_cv_x86_rdrand = yes; then
++    $as_echo "#define _GLIBCXX_X86_RDRAND 1" >>confdefs.h
+ 
+   fi
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_x86_rdrand" >&5
+@@ -78657,7 +78691,7 @@
+ 
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+-#include "gthr.h"
++#include "gthr-$target_thread_file.h"
+ int
+ main ()
+ {
+diff -urN ./configure.ac ../google/libstdc++-v3/configure.ac
+--- ./configure.ac	2014-01-24 01:17:15.000000000 +0400
++++ ../google/libstdc++-v3/configure.ac	2015-11-30 10:46:40.674488667 +0300
+@@ -363,6 +363,12 @@
+ GLIBCXX_ENABLE_SYMVERS([yes])
+ AC_SUBST(libtool_VERSION)
+ 
++case "$target" in
++  *android*) libtool_version_info_string="-avoid-version" ;;
++  *) libtool_version_info_string="-version-info $libtool_VERSION"
++esac
++AC_SUBST(libtool_version_info_string)
++
+ GLIBCXX_ENABLE_LIBSTDCXX_VISIBILITY([yes])
+ 
+ ac_ldbl_compat=no
+diff -urN ./configure.host ../google/libstdc++-v3/configure.host
+--- ./configure.host	2013-07-05 01:07:44.000000000 +0400
++++ ../google/libstdc++-v3/configure.host	2015-11-30 10:46:40.674488667 +0300
+@@ -219,7 +219,6 @@
+     os_include_dir="os/aix"
+     atomicity_dir="os/aix"
+     atomic_word_dir="os/aix"
+-    OPT_LDFLAGS="-Wl,-G"
+     ;;
+   aix4.*)
+     os_include_dir="os/generic"
+diff -urN ./include/backward/hashtable.h ../google/libstdc++-v3/include/backward/hashtable.h
+--- ./include/backward/hashtable.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/backward/hashtable.h	2015-11-30 10:46:40.744488666 +0300
+@@ -125,7 +125,8 @@
+       _Hashtable_iterator(_Node* __n, _Hashtable* __tab)
+       : _M_cur(__n), _M_ht(__tab) { }
+ 
+-      _Hashtable_iterator() { }
++      _Hashtable_iterator()
++      : _M_cur(0), _M_ht(0) { }
+ 
+       reference
+       operator*() const
+diff -urN ./include/bits/algorithmfwd.h ../google/libstdc++-v3/include/bits/algorithmfwd.h
+--- ./include/bits/algorithmfwd.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/algorithmfwd.h	2015-11-30 10:46:40.744488666 +0300
+@@ -482,11 +482,13 @@
+ 
+   template<typename _FIter, typename _Tp>
+     _FIter 
+-    remove(_FIter, _FIter, const _Tp&);
++    remove(_FIter, _FIter, const _Tp&)
++      __attribute__ ((warn_unused_result));
+ 
+   template<typename _FIter, typename _Predicate>
+     _FIter 
+-    remove_if(_FIter, _FIter, _Predicate);
++    remove_if(_FIter, _FIter, _Predicate)
++      __attribute__ ((warn_unused_result));
+ 
+   template<typename _IIter, typename _OIter, typename _Tp>
+     _OIter 
+@@ -574,11 +576,13 @@
+ 
+   template<typename _FIter>
+     _FIter 
+-    unique(_FIter, _FIter);
++    unique(_FIter, _FIter)
++      __attribute__ ((warn_unused_result));
+ 
+   template<typename _FIter, typename _BinaryPredicate>
+     _FIter 
+-    unique(_FIter, _FIter, _BinaryPredicate);
++    unique(_FIter, _FIter, _BinaryPredicate)
++      __attribute__ ((warn_unused_result));
+ 
+   // unique_copy
+ 
+diff -urN ./include/bits/atomic_base.h ../google/libstdc++-v3/include/bits/atomic_base.h
+--- ./include/bits/atomic_base.h	2014-08-04 22:50:04.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/atomic_base.h	2015-11-30 10:46:40.754488666 +0300
+@@ -355,7 +355,10 @@
+     private:
+       typedef _ITp 	__int_type;
+ 
+-      __int_type 	_M_i;
++      static constexpr int _S_alignment =
++        sizeof(_ITp) > alignof(_ITp) ? sizeof(_ITp) : alignof(_ITp);
++
++      alignas(_S_alignment) __int_type _M_i;
+ 
+     public:
+       __atomic_base() noexcept = default;
+diff -urN ./include/bits/deque.tcc ../google/libstdc++-v3/include/bits/deque.tcc
+--- ./include/bits/deque.tcc	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/deque.tcc	2015-11-30 10:46:40.754488666 +0300
+@@ -150,6 +150,10 @@
+       deque<_Tp, _Alloc>::
+       emplace(const_iterator __position, _Args&&... __args)
+       {
++#if __google_stl_debug_vector
++	if (__position < this->begin() || __position > this->end())
++	  __throw_out_of_range(__N("emplace() at invalid position"));
++#endif
+ 	if (__position._M_cur == this->_M_impl._M_start._M_cur)
+ 	  {
+ 	    emplace_front(std::forward<_Args>(__args)...);
+@@ -177,6 +181,10 @@
+     insert(iterator __position, const value_type& __x)
+ #endif
+     {
++#if __google_stl_debug_vector
++      if (__position < this->begin() || __position > this->end())
++	__throw_out_of_range(__N("insert() at invalid position"));
++#endif
+       if (__position._M_cur == this->_M_impl._M_start._M_cur)
+ 	{
+ 	  push_front(__x);
+@@ -198,6 +206,10 @@
+     deque<_Tp, _Alloc>::
+     _M_erase(iterator __position)
+     {
++#if __google_stl_debug_deque
++      if (__position < this->begin() || __position >= this->end())
++	__throw_logic_error("erase() at invalid position");
++#endif
+       iterator __next = __position;
+       ++__next;
+       const difference_type __index = __position - begin();
+@@ -221,6 +233,10 @@
+     deque<_Tp, _Alloc>::
+     _M_erase(iterator __first, iterator __last)
+     {
++#if __google_stl_debug_deque
++      if (__first < this->begin() || __first > __last || __last > this->end())
++	  __throw_logic_error("erase() invalid range");
++#endif
+       if (__first == __last)
+ 	return __first;
+       else if (__first == begin() && __last == end())
+diff -urN ./include/bits/move.h ../google/libstdc++-v3/include/bits/move.h
+--- ./include/bits/move.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/move.h	2015-11-30 10:46:40.754488666 +0300
+@@ -39,10 +39,13 @@
+ 
+   // Used, in C++03 mode too, by allocators, etc.
+   /**
+-   *  @brief Same as C++11 std::addressof
++   *  @brief Same as C++11 std::addressof, except it is constexpr in C++11.
+    *  @ingroup utilities
+    */
+   template<typename _Tp>
++#if __cplusplus >= 201103L
++    constexpr
++#endif
+     inline _Tp*
+     __addressof(_Tp& __r) _GLIBCXX_NOEXCEPT
+     {
+diff -urN ./include/bits/regex_compiler.tcc ../google/libstdc++-v3/include/bits/regex_compiler.tcc
+--- ./include/bits/regex_compiler.tcc	2014-06-03 21:26:24.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/regex_compiler.tcc	2015-11-30 10:46:40.754488666 +0300
+@@ -271,7 +271,7 @@
+ 		{
+ 		  auto& __tmp = _M_nfa[__stack.top()];
+ 		  __stack.pop();
+-		  swap(__tmp._M_next, __tmp._M_alt);
++		  std::swap(__tmp._M_next, __tmp._M_alt);
+ 		}
+ 	    }
+ 	  _M_stack.push(__e);
+diff -urN ./include/bits/regex_executor.tcc ../google/libstdc++-v3/include/bits/regex_executor.tcc
+--- ./include/bits/regex_executor.tcc	2014-06-03 21:26:31.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/regex_executor.tcc	2015-11-30 10:46:40.754488666 +0300
+@@ -267,9 +267,11 @@
+ 	    _M_dfs<__match_mode>(__state._M_next);
+ 	  break;
+ 	case _S_opcode_match:
++	  if (_M_current == _M_end)
++	    break;
+ 	  if (__dfs_mode)
+ 	    {
+-	      if (_M_current != _M_end && __state._M_matches(*_M_current))
++	      if (__state._M_matches(*_M_current))
+ 		{
+ 		  ++_M_current;
+ 		  _M_dfs<__match_mode>(__state._M_next);
+@@ -350,23 +352,24 @@
+     bool _Executor<_BiIter, _Alloc, _TraitsT, __dfs_mode>::
+     _M_word_boundary(_State<_TraitsT> __state) const
+     {
+-      // By definition.
+-      bool __ans = false;
+-      auto __pre = _M_current;
+-      --__pre;
+-      if (!(_M_at_begin() && _M_at_end()))
++      bool __left_is_word = false;
++      if (_M_current != _M_begin
++	  || (_M_flags & regex_constants::match_prev_avail))
+ 	{
+-	  if (_M_at_begin())
+-	    __ans = _M_is_word(*_M_current)
+-	      && !(_M_flags & regex_constants::match_not_bow);
+-	  else if (_M_at_end())
+-	    __ans = _M_is_word(*__pre)
+-	      && !(_M_flags & regex_constants::match_not_eow);
+-	  else
+-	    __ans = _M_is_word(*_M_current)
+-	      != _M_is_word(*__pre);
++	  auto __prev = _M_current;
++	  if (_M_is_word(*std::prev(__prev)))
++	    __left_is_word = true;
+ 	}
+-      return __ans;
++      bool __right_is_word =
++	_M_current != _M_end && _M_is_word(*_M_current);
++
++      if (__left_is_word == __right_is_word)
++	return false;
++      if (__left_is_word && !(_M_flags & regex_constants::match_not_eow))
++	return true;
++      if (__right_is_word && !(_M_flags & regex_constants::match_not_bow))
++	return true;
++      return false;
+     }
+ 
+ _GLIBCXX_END_NAMESPACE_VERSION
+diff -urN ./include/bits/regex.h ../google/libstdc++-v3/include/bits/regex.h
+--- ./include/bits/regex.h	2014-10-08 13:06:46.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/regex.h	2015-11-30 10:46:40.754488666 +0300
+@@ -476,7 +476,10 @@
+        */
+       basic_regex(const basic_regex& __rhs)
+       : _M_flags(__rhs._M_flags), _M_original_str(__rhs._M_original_str)
+-      { this->imbue(__rhs.getloc()); }
++      {
++	_M_traits.imbue(__rhs.getloc());
++	this->assign(_M_original_str, _M_flags);
++      }
+ 
+       /**
+        * @brief Move-constructs a basic regular expression.
+@@ -490,7 +493,8 @@
+       : _M_flags(__rhs._M_flags),
+       _M_original_str(std::move(__rhs._M_original_str))
+       {
+-	this->imbue(__rhs.getloc());
++	_M_traits.imbue(__rhs.getloc());
++	this->assign(_M_original_str, _M_flags);
+ 	__rhs._M_automaton.reset();
+       }
+ 
+@@ -604,7 +608,8 @@
+       {
+ 	_M_flags = __rhs._M_flags;
+ 	_M_original_str = __rhs._M_original_str;
+-	this->imbue(__rhs.getloc());
++	_M_traits.imbue(__rhs.getloc());
++	this->assign(_M_original_str, _M_flags);
+ 	return *this;
+       }
+ 
+@@ -622,7 +627,9 @@
+ 	_M_flags = __rhs._M_flags;
+ 	_M_original_str = std::move(__rhs._M_original_str);
+ 	__rhs._M_automaton.reset();
+-	this->imbue(__rhs.getloc());
++	_M_traits.imbue(__rhs.getloc());
++	this->assign(_M_original_str, _M_flags);
++	return *this;
+       }
+ 
+       /**
+@@ -675,12 +682,10 @@
+ 	assign(const basic_string<_Ch_type, _Ch_typeraits, _Alloc>& __s,
+ 	       flag_type __flags = ECMAScript)
+ 	{
++	  _M_automaton = __detail::__compile_nfa(
++	    __s.data(), __s.data() + __s.size(), _M_traits, __flags);
++	  _M_original_str = __s;
+ 	  _M_flags = __flags;
+-	  _M_original_str.assign(__s.begin(), __s.end());
+-	  auto __p = _M_original_str.c_str();
+-	  _M_automaton = __detail::__compile_nfa(__p,
+-						 __p + _M_original_str.size(),
+-						 _M_traits, _M_flags);
+ 	  return *this;
+ 	}
+ 
+@@ -725,7 +730,11 @@
+        */
+       unsigned int
+       mark_count() const
+-      { return _M_automaton->_M_sub_count() - 1; }
++      {
++	if (_M_automaton)
++	  return _M_automaton->_M_sub_count() - 1;
++	return 0;
++      }
+ 
+       /**
+        * @brief Gets the flags used to construct the regular expression
+@@ -744,9 +753,8 @@
+       locale_type
+       imbue(locale_type __loc)
+       {
+-	auto __ret = _M_traits.imbue(__loc);
+-	this->assign(_M_original_str, _M_flags);
+-	return __ret;
++	_M_automaton = nullptr;
++	return _M_traits.imbue(__loc);
+       }
+ 
+       /**
+@@ -767,8 +775,10 @@
+       swap(basic_regex& __rhs)
+       {
+ 	std::swap(_M_flags, __rhs._M_flags);
+-	std::swap(_M_original_str, __rhs._M_original_str);
+-	this->imbue(__rhs.imbue(this->getloc()));
++	std::swap(_M_traits, __rhs._M_traits);
++	auto __tmp = std::move(_M_original_str);
++	this->assign(__rhs._M_original_str, _M_flags);
++	__rhs.assign(__tmp, __rhs._M_flags);
+       }
+ 
+ #ifdef _GLIBCXX_DEBUG
+@@ -777,7 +787,7 @@
+       { _M_automaton->_M_dot(__ostr); }
+ #endif
+ 
+-    protected:
++    private:
+       typedef std::shared_ptr<__detail::_NFA<_Rx_traits>> _AutomatonPtr;
+ 
+       template<typename _Bp, typename _Ap, typename _Cp, typename _Rp,
+@@ -1568,42 +1578,30 @@
+        */
+       explicit
+       match_results(const _Alloc& __a = _Alloc())
+-      : _Base_type(__a), _M_in_iterator(false)
++      : _Base_type(__a)
+       { }
+ 
+       /**
+        * @brief Copy constructs a %match_results.
+        */
+-      match_results(const match_results& __rhs)
+-      : _Base_type(__rhs), _M_in_iterator(false)
+-      { }
++      match_results(const match_results& __rhs) = default;
+ 
+       /**
+        * @brief Move constructs a %match_results.
+        */
+-      match_results(match_results&& __rhs) noexcept
+-      : _Base_type(std::move(__rhs)), _M_in_iterator(false)
+-      { }
++      match_results(match_results&& __rhs) noexcept = default;
+ 
+       /**
+        * @brief Assigns rhs to *this.
+        */
+       match_results&
+-      operator=(const match_results& __rhs)
+-      {
+-	match_results(__rhs).swap(*this);
+-	return *this;
+-      }
++      operator=(const match_results& __rhs) = default;
+ 
+       /**
+        * @brief Move-assigns rhs to *this.
+        */
+       match_results&
+-      operator=(match_results&& __rhs)
+-      {
+-	match_results(std::move(__rhs)).swap(*this);
+-	return *this;
+-      }
++      operator=(match_results&& __rhs) = default;
+ 
+       /**
+        * @brief Destroys a %match_results object.
+@@ -1690,13 +1688,8 @@
+       difference_type
+       position(size_type __sub = 0) const
+       {
+-	// [28.12.1.4.5]
+-	if (_M_in_iterator)
+-	  return __sub < size() ? std::distance(_M_begin,
+-						(*this)[__sub].first) : -1;
+-	else
+-	  return __sub < size() ? std::distance(this->prefix().first,
+-						(*this)[__sub].first) : -1;
++	return __sub < size() ? std::distance(_M_begin,
++					      (*this)[__sub].first) : -1;
+       }
+ 
+       /**
+@@ -1778,7 +1771,7 @@
+        */
+       const_iterator
+       cbegin() const
+-      { return _Base_type::cbegin() + 2; }
++      { return this->begin(); }
+ 
+       /**
+        * @brief Gets an iterator to one-past-the-end of the collection.
+@@ -1792,7 +1785,7 @@
+        */
+       const_iterator
+       cend() const
+-      { return _Base_type::cend(); }
++      { return this->end(); }
+ 
+       //@}
+ 
+@@ -1881,7 +1874,11 @@
+        */
+       void
+       swap(match_results& __that)
+-      { _Base_type::swap(__that); }
++      {
++	using std::swap;
++	_Base_type::swap(__that);
++	swap(_M_begin, __that._M_begin);
++      }
+       //@}
+ 
+     private:
+@@ -2620,7 +2617,7 @@
+ 			     regex_constants::match_flag_type __m
+ 			     = regex_constants::match_default)
+       : _M_position(__a, __b, __re, __m),
+-      _M_subs(__submatches, *(&__submatches+1)), _M_n(0)
++      _M_subs(__submatches, __submatches + _Nm), _M_n(0)
+       { _M_init(__a, __b); }
+ 
+       /**
+@@ -2629,12 +2626,8 @@
+        */
+       regex_token_iterator(const regex_token_iterator& __rhs)
+       : _M_position(__rhs._M_position), _M_subs(__rhs._M_subs),
+-      _M_suffix(__rhs._M_suffix), _M_n(__rhs._M_n), _M_result(__rhs._M_result),
+-      _M_has_m1(__rhs._M_has_m1)
+-      {
+-	if (__rhs._M_result == &__rhs._M_suffix)
+-	  _M_result = &_M_suffix;
+-      }
++      _M_suffix(__rhs._M_suffix), _M_n(__rhs._M_n), _M_has_m1(__rhs._M_has_m1)
++      { _M_normalize_result(); }
+ 
+       /**
+        * @brief Assigns a %regex_token_iterator to another.
+@@ -2706,6 +2699,18 @@
+       _M_end_of_seq() const
+       { return _M_result == nullptr; }
+ 
++      // [28.12.2.2.4]
++      void
++      _M_normalize_result()
++      {
++	if (_M_position != _Position())
++	  _M_result = &_M_current_match();
++	else if (_M_has_m1)
++	  _M_result = &_M_suffix;
++	else
++	  _M_result = nullptr;
++      }
++
+       _Position         _M_position;
+       std::vector<int>  _M_subs;
+       value_type        _M_suffix;
+diff -urN ./include/bits/regex.tcc ../google/libstdc++-v3/include/bits/regex.tcc
+--- ./include/bits/regex.tcc	2014-02-26 23:45:15.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/regex.tcc	2015-11-30 10:46:40.754488666 +0300
+@@ -62,6 +62,7 @@
+ 	return false;
+ 
+       typename match_results<_BiIter, _Alloc>::_Base_type& __res = __m;
++      __m._M_begin = __s;
+       __res.resize(__re._M_automaton->_M_sub_count() + 2);
+       for (auto& __it : __res)
+ 	__it.matched = false;
+@@ -274,53 +275,17 @@
+ 	  "right-curly-bracket",
+ 	  "tilde",
+ 	  "DEL",
+-	  ""
+ 	};
+ 
+-      // same as boost
+-      //static const char* __digraphs[] =
+-      //  {
+-      //    "ae",
+-      //    "Ae",
+-      //    "AE",
+-      //    "ch",
+-      //    "Ch",
+-      //    "CH",
+-      //    "ll",
+-      //    "Ll",
+-      //    "LL",
+-      //    "ss",
+-      //    "Ss",
+-      //    "SS",
+-      //    "nj",
+-      //    "Nj",
+-      //    "NJ",
+-      //    "dz",
+-      //    "Dz",
+-      //    "DZ",
+-      //    "lj",
+-      //    "Lj",
+-      //    "LJ",
+-      //    ""
+-      //  };
+-
+-      std::string __s(__last - __first, '?');
+-      __fctyp.narrow(__first, __last, '?', &*__s.begin());
+-
+-      for (unsigned int __i = 0; *__collatenames[__i]; __i++)
+-	if (__s == __collatenames[__i])
+-	  return string_type(1, __fctyp.widen(static_cast<char>(__i)));
+-
+-      //for (unsigned int __i = 0; *__digraphs[__i]; __i++)
+-      //  {
+-      //    const char* __now = __digraphs[__i];
+-      //    if (__s == __now)
+-      //      {
+-      //	string_type ret(__s.size(), __fctyp.widen('?'));
+-      //	__fctyp.widen(__now, __now + 2/* ouch */, &*ret.begin());
+-      //	return ret;
+-      //      }
+-      //  }
++      string __s(__first, __last);
++      for (const auto& __it : __collatenames)
++	if (__s == __it)
++	  return string_type(1, __fctyp.widen(
++	    static_cast<char>(&__it - __collatenames)));
++
++      // TODO Add digraph support:
++      // http://boost.sourceforge.net/libs/regex/doc/collating_names.html
++
+       return string_type();
+     }
+ 
+@@ -331,12 +296,10 @@
+     lookup_classname(_Fwd_iter __first, _Fwd_iter __last, bool __icase) const
+     {
+       typedef std::ctype<char_type> __ctype_type;
+-      typedef std::ctype<char> __cctype_type;
+-      typedef const pair<const char*, char_class_type> _ClassnameEntry;
+       const __ctype_type& __fctyp(use_facet<__ctype_type>(_M_locale));
+-      const __cctype_type& __cctyp(use_facet<__cctype_type>(_M_locale));
+ 
+-      static _ClassnameEntry __classnames[] =
++      // Mappings from class name to class mask.
++      static const pair<const char*, char_class_type> __classnames[] =
+       {
+ 	{"d", ctype_base::digit},
+ 	{"w", {ctype_base::alnum, _RegexMask::_S_under}},
+@@ -355,22 +318,19 @@
+ 	{"xdigit", ctype_base::xdigit},
+       };
+ 
+-      std::string __s(__last - __first, '?');
+-      __fctyp.narrow(__first, __last, '?', &__s[0]);
+-      __cctyp.tolower(&*__s.begin(), &*__s.begin() + __s.size());
+-      for (_ClassnameEntry* __it = __classnames;
+-	   __it < *(&__classnames + 1);
+-	   ++__it)
+-	{
+-	  if (__s == __it->first)
+-	    {
+-	      if (__icase
+-		  && ((__it->second
+-		       & (ctype_base::lower | ctype_base::upper)) != 0))
+-		return ctype_base::alpha;
+-	      return __it->second;
+-	    }
+-	}
++      string __s;
++      for (auto __cur = __first; __cur != __last; ++__cur)
++	__s += __fctyp.narrow(__fctyp.tolower(*__cur), '?');
++
++      for (const auto& __it : __classnames)
++	if (__s == __it.first)
++	  {
++	    if (__icase
++		&& ((__it.second
++		     & (ctype_base::lower | ctype_base::upper)) != 0))
++	      return ctype_base::alpha;
++	    return __it.second;
++	  }
+       return 0;
+     }
+ 
+@@ -581,8 +541,10 @@
+ 				   | regex_constants::match_continuous))
+ 		    {
+ 		      _GLIBCXX_DEBUG_ASSERT(_M_match[0].matched);
+-		      _M_match.at(_M_match.size()).first = __prefix_first;
+-		      _M_match._M_in_iterator = true;
++		      auto& __prefix = _M_match.at(_M_match.size());
++		      __prefix.first = __prefix_first;
++		      __prefix.matched = __prefix.first != __prefix.second;
++		      // [28.12.1.4.5]
+ 		      _M_match._M_begin = _M_begin;
+ 		      return *this;
+ 		    }
+@@ -594,8 +556,10 @@
+ 	  if (regex_search(__start, _M_end, _M_match, *_M_pregex, _M_flags))
+ 	    {
+ 	      _GLIBCXX_DEBUG_ASSERT(_M_match[0].matched);
+-	      _M_match.at(_M_match.size()).first = __prefix_first;
+-	      _M_match._M_in_iterator = true;
++	      auto& __prefix = _M_match.at(_M_match.size());
++	      __prefix.first = __prefix_first;
++	      __prefix.matched = __prefix.first != __prefix.second;
++	      // [28.12.1.4.5]
+ 	      _M_match._M_begin = _M_begin;
+ 	    }
+ 	  else
+@@ -614,11 +578,9 @@
+       _M_position = __rhs._M_position;
+       _M_subs = __rhs._M_subs;
+       _M_n = __rhs._M_n;
+-      _M_result = __rhs._M_result;
+       _M_suffix = __rhs._M_suffix;
+       _M_has_m1 = __rhs._M_has_m1;
+-      if (__rhs._M_result == &__rhs._M_suffix)
+-	_M_result = &_M_suffix;
++      _M_normalize_result();
+       return *this;
+     }
+ 
+diff -urN ./include/bits/stl_algo.h ../google/libstdc++-v3/include/bits/stl_algo.h
+--- ./include/bits/stl_algo.h	2014-10-01 16:34:04.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/stl_algo.h	2015-11-30 10:46:40.754488666 +0300
+@@ -199,6 +199,40 @@
+   // count_if
+   // search
+ 
++// Local modification: if __google_stl_debug_compare is defined to
++// non-zero value, check sort predicate for strict weak ordering.
++// Google ref b/1731200.
++#if __google_stl_debug_compare
++  template<typename _Compare>
++  struct _CheckedCompare {
++    _Compare _M_compare;
++
++    _CheckedCompare(const _Compare & __comp): _M_compare(__comp) { }
++
++    template <typename _Tp>
++    bool operator()(const _Tp& __x, const _Tp& __y) {
++      if (_M_compare(__x, __x))
++        __throw_runtime_error("strict weak ordering: (__x LT __x) != false");
++      if (_M_compare(__y, __y))
++        __throw_runtime_error("strict weak ordering: (__y LT __y) != false");
++      bool lt = _M_compare(__x, __y);
++      if (lt && _M_compare(__y, __x))
++        __throw_runtime_error("strict weak ordering: ((__x LT __y) && (__y LT __x)) != false");
++      return lt;
++    }
++
++    // Different types; can't perform any checks.
++    template <typename _Tp1, typename _Tp2>
++    bool operator()(const _Tp1& __x, const _Tp2& __y) {
++      return _M_compare(__x, __y);
++    }
++  };
++# define __CheckedCompare(__comp) _CheckedCompare<__typeof__(__comp)>(__comp)
++#else
++# define __CheckedCompare(__comp) __comp
++#endif
++
++
+   template<typename _ForwardIterator1, typename _ForwardIterator2,
+ 	   typename _BinaryPredicate>
+     _ForwardIterator1
+@@ -1811,7 +1845,7 @@
+ 
+       return std::__partial_sort_copy(__first, __last,
+ 				      __result_first, __result_last,
+-				__gnu_cxx::__ops::__iter_comp_iter(__comp));
++	      __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   /// This is a helper function for the sort routine.
+@@ -2033,7 +2067,7 @@
+ 						__val, __comp);
+ 
+       return std::__lower_bound(__first, __last, __val,
+-				__gnu_cxx::__ops::__iter_comp_val(__comp));
++		__gnu_cxx::__ops::__iter_comp_val(__CheckedCompare(__comp)));
+     }
+ 
+   template<typename _ForwardIterator, typename _Tp, typename _Compare>
+@@ -2122,7 +2156,7 @@
+ 						__val, __comp);
+ 
+       return std::__upper_bound(__first, __last, __val,
+-				__gnu_cxx::__ops::__val_comp_iter(__comp));
++		__gnu_cxx::__ops::__val_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   template<typename _ForwardIterator, typename _Tp,
+@@ -2237,8 +2271,8 @@
+ 						__val, __comp);
+ 
+       return std::__equal_range(__first, __last, __val,
+-				__gnu_cxx::__ops::__iter_comp_val(__comp),
+-				__gnu_cxx::__ops::__val_comp_iter(__comp));
++		__gnu_cxx::__ops::__iter_comp_val(__CheckedCompare(__comp)),
++		__gnu_cxx::__ops::__val_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   /**
+@@ -2307,7 +2341,7 @@
+ 
+       _ForwardIterator __i
+ 	= std::__lower_bound(__first, __last, __val,
+-			     __gnu_cxx::__ops::__iter_comp_val(__comp));
++	     __gnu_cxx::__ops::__iter_comp_val(__CheckedCompare(__comp)));
+       return __i != __last && !bool(__comp(__val, *__i));
+     }
+ 
+@@ -2638,7 +2672,7 @@
+       __glibcxx_requires_sorted_pred(__middle, __last, __comp);
+ 
+       std::__inplace_merge(__first, __middle, __last,
+-			   __gnu_cxx::__ops::__iter_comp_iter(__comp));
++	   __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+ 
+@@ -2890,7 +2924,7 @@
+       __glibcxx_requires_sorted_set_pred(__first2, __last2, __first1, __comp);
+ 
+       return std::__includes(__first1, __last1, __first2, __last2,
+-			     __gnu_cxx::__ops::__iter_comp_iter(__comp));
++	     __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   // nth_element
+@@ -2997,7 +3031,7 @@
+       __glibcxx_requires_valid_range(__first, __last);
+ 
+       return std::__next_permutation
+-	(__first, __last, __gnu_cxx::__ops::__iter_comp_iter(__comp));
++	(__first, __last, __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   template<typename _BidirectionalIterator, typename _Compare>
+@@ -3095,7 +3129,7 @@
+       __glibcxx_requires_valid_range(__first, __last);
+ 
+       return std::__prev_permutation(__first, __last,
+-				__gnu_cxx::__ops::__iter_comp_iter(__comp));
++	     __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   // replace
+@@ -3282,7 +3316,7 @@
+       __glibcxx_requires_valid_range(__first, __last);
+ 
+       return std::__is_sorted_until(__first, __last,
+-				    __gnu_cxx::__ops::__iter_comp_iter(__comp));
++	    __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   /**
+@@ -3430,7 +3464,7 @@
+       __glibcxx_requires_valid_range(__first, __last);
+ 
+       return std::__minmax_element(__first, __last,
+-				   __gnu_cxx::__ops::__iter_comp_iter(__comp));
++	   __gnu_cxx::__ops::__iter_comp_iter(__comp));
+     }
+ 
+   // N2722 + DR 915.
+@@ -3595,7 +3629,8 @@
+ 
+       // Efficiently compare identical prefixes:  O(N) if sequences
+       // have the same elements in the same order.
+-      for (; __first1 != __last1; ++__first1, ++__first2)
++      for (; __first1 != __last1 && __first2 != __last2;
++	  ++__first1, ++__first2)
+ 	if (!__pred(__first1, __first2))
+ 	  break;
+ 
+@@ -4579,7 +4614,7 @@
+       __glibcxx_requires_valid_range(__middle, __last);
+ 
+       std::__partial_sort(__first, __middle, __last,
+-			  __gnu_cxx::__ops::__iter_comp_iter(__comp));
++		  __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   /**
+@@ -4654,7 +4689,7 @@
+ 
+       std::__introselect(__first, __nth, __last,
+ 			 std::__lg(__last - __first) * 2,
+-			 __gnu_cxx::__ops::__iter_comp_iter(__comp));
++		 __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   /**
+@@ -4713,7 +4748,7 @@
+ 	    typename iterator_traits<_RandomAccessIterator>::value_type>)
+       __glibcxx_requires_valid_range(__first, __last);
+ 
+-      std::__sort(__first, __last, __gnu_cxx::__ops::__iter_comp_iter(__comp));
++      std::__sort(__first, __last, __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   template<typename _InputIterator1, typename _InputIterator2,
+@@ -4830,7 +4865,7 @@
+ 
+       return _GLIBCXX_STD_A::__merge(__first1, __last1,
+ 				__first2, __last2, __result,
+-				__gnu_cxx::__ops::__iter_comp_iter(__comp));
++	     __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   template<typename _RandomAccessIterator, typename _Compare>
+@@ -4917,7 +4952,7 @@
+       __glibcxx_requires_valid_range(__first, __last);
+ 
+       _GLIBCXX_STD_A::__stable_sort(__first, __last,
+-				    __gnu_cxx::__ops::__iter_comp_iter(__comp));
++	    __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   template<typename _InputIterator1, typename _InputIterator2,
+@@ -5042,7 +5077,7 @@
+ 
+       return _GLIBCXX_STD_A::__set_union(__first1, __last1,
+ 				__first2, __last2, __result,
+-				__gnu_cxx::__ops::__iter_comp_iter(__comp));
++		 __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   template<typename _InputIterator1, typename _InputIterator2,
+@@ -5154,7 +5189,7 @@
+ 
+       return _GLIBCXX_STD_A::__set_intersection(__first1, __last1,
+ 				__first2, __last2, __result,
+-				__gnu_cxx::__ops::__iter_comp_iter(__comp));
++		__gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   template<typename _InputIterator1, typename _InputIterator2,
+@@ -5272,7 +5307,7 @@
+ 
+       return _GLIBCXX_STD_A::__set_difference(__first1, __last1,
+ 				   __first2, __last2, __result,
+-				   __gnu_cxx::__ops::__iter_comp_iter(__comp));
++	      __gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   template<typename _InputIterator1, typename _InputIterator2,
+@@ -5399,7 +5434,7 @@
+ 
+       return _GLIBCXX_STD_A::__set_symmetric_difference(__first1, __last1,
+ 				__first2, __last2, __result,
+-				__gnu_cxx::__ops::__iter_comp_iter(__comp));
++		__gnu_cxx::__ops::__iter_comp_iter(__CheckedCompare(__comp)));
+     }
+ 
+   template<typename _ForwardIterator, typename _Compare>
+@@ -5459,7 +5494,7 @@
+       __glibcxx_requires_valid_range(__first, __last);
+ 
+       return _GLIBCXX_STD_A::__min_element(__first, __last,
+-				__gnu_cxx::__ops::__iter_comp_iter(__comp));
++		   __gnu_cxx::__ops::__iter_comp_iter(__comp));
+     }
+ 
+   template<typename _ForwardIterator, typename _Compare>
+@@ -5518,7 +5553,7 @@
+       __glibcxx_requires_valid_range(__first, __last);
+ 
+       return _GLIBCXX_STD_A::__max_element(__first, __last,
+-				__gnu_cxx::__ops::__iter_comp_iter(__comp));
++	   __gnu_cxx::__ops::__iter_comp_iter(__comp));
+     }
+ 
+ _GLIBCXX_END_NAMESPACE_ALGO
+diff -urN ./include/bits/stl_bvector.h ../google/libstdc++-v3/include/bits/stl_bvector.h
+--- ./include/bits/stl_bvector.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/stl_bvector.h	2015-11-30 10:46:40.754488666 +0300
+@@ -471,11 +471,31 @@
+ #endif
+ 
+       ~_Bvector_base()
+-      { this->_M_deallocate(); }
++      {
++        this->_M_deallocate();
++#if __google_stl_debug_bvector
++        __builtin_memset(this, 0xcd, sizeof(*this));
++#endif
++      }
+ 
+     protected:
+       _Bvector_impl _M_impl;
+ 
++#if __google_stl_debug_bvector
++      bool _M_is_valid() const
++      {
++	return (this->_M_impl._M_start._M_p == 0
++		&& this->_M_impl._M_finish._M_p == 0
++		&& this->_M_impl._M_end_of_storage == 0)
++	  || (this->_M_impl._M_start._M_p <= this->_M_impl._M_finish._M_p
++	      && this->_M_impl._M_finish._M_p <= this->_M_impl._M_end_of_storage
++	      && (this->_M_impl._M_start._M_p < this->_M_impl._M_end_of_storage
++                  || (this->_M_impl._M_start._M_p == this->_M_impl._M_end_of_storage
++                      && this->_M_impl._M_start._M_offset == 0
++                      && this->_M_impl._M_finish._M_offset == 0)));
++      }
++#endif
++
+       _Bit_type*
+       _M_allocate(size_t __n)
+       { return _M_impl.allocate(_S_nword(__n)); }
+@@ -631,6 +651,10 @@
+     vector&
+     operator=(const vector& __x)
+     {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("op=() on corrupt (dangling?) vector");
++#endif
+       if (&__x == this)
+ 	return *this;
+       if (__x.size() > capacity())
+@@ -647,6 +671,10 @@
+     vector&
+     operator=(vector&& __x)
+     {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("op=() on corrupt (dangling?) vector");
++#endif
+       // NB: DR 1204.
+       // NB: DR 675.
+       this->clear();
+@@ -668,19 +696,35 @@
+     // or not the type is an integer.
+     void
+     assign(size_type __n, const bool& __x)
+-    { _M_fill_assign(__n, __x); }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("assign() on corrupt (dangling?) vector");
++#endif
++      _M_fill_assign(__n, __x);
++    }
+ 
+ #if __cplusplus >= 201103L
+     template<typename _InputIterator,
+ 	     typename = std::_RequireInputIter<_InputIterator>>
+       void
+       assign(_InputIterator __first, _InputIterator __last)
+-      { _M_assign_dispatch(__first, __last, __false_type()); }
++      {
++#if __google_stl_debug_bvector
++	if (!this->_M_is_valid())
++	  __throw_logic_error("assign() on corrupt (dangling?) vector");
++#endif
++	_M_assign_dispatch(__first, __last, __false_type());
++      }
+ #else
+     template<typename _InputIterator>
+       void
+       assign(_InputIterator __first, _InputIterator __last)
+       {
++#if __google_stl_debug_bvector
++	if (!this->_M_is_valid())
++	  __throw_logic_error("assign() on corrupt (dangling?) vector");
++#endif
+ 	typedef typename std::__is_integer<_InputIterator>::__type _Integral;
+ 	_M_assign_dispatch(__first, __last, _Integral());
+       }
+@@ -694,19 +738,43 @@
+ 
+     iterator
+     begin() _GLIBCXX_NOEXCEPT
+-    { return this->_M_impl._M_start; }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("begin() on corrupt (dangling?) vector");
++#endif
++      return this->_M_impl._M_start;
++    }
+ 
+     const_iterator
+     begin() const _GLIBCXX_NOEXCEPT
+-    { return this->_M_impl._M_start; }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("begin() on corrupt (dangling?) vector");
++#endif
++      return this->_M_impl._M_start;
++    }
+ 
+     iterator
+     end() _GLIBCXX_NOEXCEPT
+-    { return this->_M_impl._M_finish; }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("end() on corrupt (dangling?) vector");
++#endif
++      return this->_M_impl._M_finish;
++    }
+ 
+     const_iterator
+     end() const _GLIBCXX_NOEXCEPT
+-    { return this->_M_impl._M_finish; }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("end() on corrupt (dangling?) vector");
++#endif
++      return this->_M_impl._M_finish;
++    }
+ 
+     reverse_iterator
+     rbegin() _GLIBCXX_NOEXCEPT
+@@ -727,11 +795,23 @@
+ #if __cplusplus >= 201103L
+     const_iterator
+     cbegin() const noexcept
+-    { return this->_M_impl._M_start; }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("cbegin() on corrupt (dangling?) vector");
++#endif
++      return this->_M_impl._M_start;
++    }
+ 
+     const_iterator
+     cend() const noexcept
+-    { return this->_M_impl._M_finish; }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("cend() on corrupt (dangling?) vector");
++#endif
++      return this->_M_impl._M_finish;
++    }
+ 
+     const_reverse_iterator
+     crbegin() const noexcept
+@@ -749,6 +829,10 @@
+     size_type
+     max_size() const _GLIBCXX_NOEXCEPT
+     {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("max_size() on corrupt (dangling?) vector");
++#endif
+       const size_type __isize =
+ 	__gnu_cxx::__numeric_traits<difference_type>::__max
+ 	- int(_S_word_bit) + 1;
+@@ -769,6 +853,11 @@
+     reference
+     operator[](size_type __n)
+     {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("operator[] on corrupt (dangling?) vector");
++      _M_range_check(__n);
++#endif
+       return *iterator(this->_M_impl._M_start._M_p
+ 		       + __n / int(_S_word_bit), __n % int(_S_word_bit));
+     }
+@@ -776,6 +865,11 @@
+     const_reference
+     operator[](size_type __n) const
+     {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("operator[] on corrupt (dangling?) vector");
++      _M_range_check(__n);
++#endif
+       return *const_iterator(this->_M_impl._M_start._M_p
+ 			     + __n / int(_S_word_bit), __n % int(_S_word_bit));
+     }
+@@ -794,11 +888,21 @@
+   public:
+     reference
+     at(size_type __n)
+-    { _M_range_check(__n); return (*this)[__n]; }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("at() on corrupt (dangling?) vector");
++#endif
++      _M_range_check(__n); return (*this)[__n]; }
+ 
+     const_reference
+     at(size_type __n) const
+-    { _M_range_check(__n); return (*this)[__n]; }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("at() on corrupt (dangling?) vector");
++#endif
++      _M_range_check(__n); return (*this)[__n]; }
+ 
+     void
+     reserve(size_type __n)
+@@ -811,19 +915,47 @@
+ 
+     reference
+     front()
+-    { return *begin(); }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("front() on corrupt (dangling?) vector");
++      _M_range_check(0);
++#endif
++      return *begin();
++    }
+ 
+     const_reference
+     front() const
+-    { return *begin(); }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("front() on corrupt (dangling?) vector");
++      _M_range_check(0);
++#endif
++      return *begin();
++    }
+ 
+     reference
+     back()
+-    { return *(end() - 1); }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("back() on corrupt (dangling?) vector");
++      _M_range_check(0);
++#endif
++      return *(end() - 1);
++    }
+ 
+     const_reference
+     back() const
+-    { return *(end() - 1); }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("back() on corrupt (dangling?) vector");
++      _M_range_check(0);
++#endif
++      return *(end() - 1);
++    }
+ 
+     // _GLIBCXX_RESOLVE_LIB_DEFECTS
+     // DR 464. Suggestion for new member functions in standard containers.
+@@ -836,6 +968,10 @@
+     void
+     push_back(bool __x)
+     {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("push_back() on corrupt (dangling?) vector");
++#endif
+       if (this->_M_impl._M_finish._M_p != this->_M_impl._M_end_of_storage)
+         *this->_M_impl._M_finish++ = __x;
+       else
+@@ -845,6 +981,10 @@
+     void
+     swap(vector& __x)
+     {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid() || !__x._M_is_valid())
++	__throw_logic_error("swap() on corrupt (dangling?) vector");
++#endif
+       std::swap(this->_M_impl._M_start, __x._M_impl._M_start);
+       std::swap(this->_M_impl._M_finish, __x._M_impl._M_finish);
+       std::swap(this->_M_impl._M_end_of_storage, 
+@@ -872,6 +1012,12 @@
+     insert(iterator __position, const bool& __x = bool())
+ #endif
+     {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("insert() on corrupt (dangling?) vector");
++      if (__position < this->begin() || __position > this->end())
++	__throw_logic_error("insert() at invalid position");
++#endif
+       const difference_type __n = __position - begin();
+       if (this->_M_impl._M_finish._M_p != this->_M_impl._M_end_of_storage
+ 	  && __position == end())
+@@ -888,6 +1034,12 @@
+       insert(const_iterator __position,
+ 	     _InputIterator __first, _InputIterator __last)
+       {
++#if __google_stl_debug_bvector
++	if (!this->_M_is_valid())
++	  __throw_logic_error("insert() on corrupt (dangling?) vector");
++	if (__position < this->begin() || __position > this->end())
++	  __throw_logic_error("insert() at invalid position");
++#endif
+ 	difference_type __offset = __position - cbegin();
+ 	_M_insert_dispatch(__position._M_const_cast(),
+ 			   __first, __last, __false_type());
+@@ -899,6 +1051,12 @@
+       insert(iterator __position,
+ 	     _InputIterator __first, _InputIterator __last)
+       {
++#if __google_stl_debug_bvector
++	if (!this->_M_is_valid())
++	  __throw_logic_error("insert() on corrupt (dangling?) vector");
++	if (__position < this->begin() || __position > this->end())
++	  __throw_logic_error("insert() at invalid position");
++#endif
+ 	typedef typename std::__is_integer<_InputIterator>::__type _Integral;
+ 	_M_insert_dispatch(__position, __first, __last, _Integral());
+       }
+@@ -908,6 +1066,12 @@
+     iterator
+     insert(const_iterator __position, size_type __n, const bool& __x)
+     {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("insert() on corrupt (dangling?) vector");
++      if (__position < this->begin() || __position > this->end())
++	__throw_logic_error("insert() at invalid position");
++#endif
+       difference_type __offset = __position - cbegin();
+       _M_fill_insert(__position._M_const_cast(), __n, __x);
+       return begin() + __offset;
+@@ -915,7 +1079,15 @@
+ #else
+     void
+     insert(iterator __position, size_type __n, const bool& __x)
+-    { _M_fill_insert(__position, __n, __x); }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("insert() on corrupt (dangling?) vector");
++      if (__position < this->begin() || __position > this->end())
++	__throw_logic_error("insert() at invalid position");
++#endif
++      _M_fill_insert(__position, __n, __x);
++    }
+ #endif
+ 
+ #if __cplusplus >= 201103L
+@@ -926,7 +1098,14 @@
+ 
+     void
+     pop_back()
+-    { --this->_M_impl._M_finish; }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("pop_back() on corrupt (dangling?) vector");
++      _M_range_check(0);
++#endif
++      --this->_M_impl._M_finish;
++    }
+ 
+     iterator
+ #if __cplusplus >= 201103L
+@@ -934,7 +1113,15 @@
+ #else
+     erase(iterator __position)
+ #endif
+-    { return _M_erase(__position._M_const_cast()); }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("erase() on corrupt (dangling?) vector");
++      if (__position < this->begin() || __position >= this->end())
++	__throw_logic_error("erase() at invalid position");
++#endif
++      return _M_erase(__position._M_const_cast());
++    }
+ 
+     iterator
+ #if __cplusplus >= 201103L
+@@ -942,7 +1129,15 @@
+ #else
+     erase(iterator __first, iterator __last)
+ #endif
+-    { return _M_erase(__first._M_const_cast(), __last._M_const_cast()); }
++    { 
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("erase() on corrupt (dangling?) vector");
++      if (__first < this->begin() || __first > __last || __last > this->end())
++	__throw_logic_error("erase() invalid range");
++#endif
++      return _M_erase(__first._M_const_cast(), __last._M_const_cast());
++    }
+ 
+     void
+     resize(size_type __new_size, bool __x = bool())
+@@ -956,12 +1151,22 @@
+ #if __cplusplus >= 201103L
+     void
+     shrink_to_fit()
+-    { _M_shrink_to_fit(); }
++    {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("shrink_to_fit() on corrupt (dangling?) vector");
++#endif
++      _M_shrink_to_fit();
++    }
+ #endif
+ 
+     void
+     flip() _GLIBCXX_NOEXCEPT
+     {
++#if __google_stl_debug_bvector
++      if (!this->_M_is_valid())
++	__throw_logic_error("flip() on corrupt (dangling?) vector");
++#endif
+       for (_Bit_type * __p = this->_M_impl._M_start._M_p;
+ 	   __p != this->_M_impl._M_end_of_storage; ++__p)
+         *__p = ~*__p;
+diff -urN ./include/bits/stl_deque.h ../google/libstdc++-v3/include/bits/stl_deque.h
+--- ./include/bits/stl_deque.h	2014-02-22 14:24:11.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/stl_deque.h	2015-11-30 10:46:40.754488666 +0300
+@@ -1247,7 +1247,12 @@
+        */
+       reference
+       operator[](size_type __n) _GLIBCXX_NOEXCEPT
+-      { return this->_M_impl._M_start[difference_type(__n)]; }
++      {
++#if __google_stl_debug_deque
++	_M_range_check(__n);
++#endif
++	return this->_M_impl._M_start[difference_type(__n)];
++      }
+ 
+       /**
+        *  @brief Subscript access to the data contained in the %deque.
+@@ -1262,7 +1267,12 @@
+        */
+       const_reference
+       operator[](size_type __n) const _GLIBCXX_NOEXCEPT
+-      { return this->_M_impl._M_start[difference_type(__n)]; }
++      {
++#if __google_stl_debug_deque
++	_M_range_check(__n);
++#endif
++	return this->_M_impl._M_start[difference_type(__n)];
++      }
+ 
+     protected:
+       /// Safety check used only from at().
+@@ -1319,7 +1329,12 @@
+        */
+       reference
+       front() _GLIBCXX_NOEXCEPT
+-      { return *begin(); }
++      {
++#if __google_stl_debug_deque
++	if (empty()) __throw_logic_error("front() on empty deque");
++#endif
++	return *begin();
++      }
+ 
+       /**
+        *  Returns a read-only (constant) reference to the data at the first
+@@ -1327,7 +1342,12 @@
+        */
+       const_reference
+       front() const _GLIBCXX_NOEXCEPT
+-      { return *begin(); }
++      {
++#if __google_stl_debug_deque
++	if (empty()) __throw_logic_error("front() on empty deque");
++#endif
++	return *begin();
++      }
+ 
+       /**
+        *  Returns a read/write reference to the data at the last element of the
+@@ -1336,6 +1356,9 @@
+       reference
+       back() _GLIBCXX_NOEXCEPT
+       {
++#if __google_stl_debug_deque
++	if (empty()) __throw_logic_error("back() on empty deque");
++#endif
+ 	iterator __tmp = end();
+ 	--__tmp;
+ 	return *__tmp;
+@@ -1348,6 +1371,9 @@
+       const_reference
+       back() const _GLIBCXX_NOEXCEPT
+       {
++#if __google_stl_debug_deque
++	if (empty()) __throw_logic_error("back() on empty deque");
++#endif
+ 	const_iterator __tmp = end();
+ 	--__tmp;
+ 	return *__tmp;
+@@ -1428,6 +1454,9 @@
+       void
+       pop_front() _GLIBCXX_NOEXCEPT
+       {
++#if __google_stl_debug_deque
++	if (empty()) __throw_logic_error("pop_front() on empty deque");
++#endif
+ 	if (this->_M_impl._M_start._M_cur
+ 	    != this->_M_impl._M_start._M_last - 1)
+ 	  {
+@@ -1449,6 +1478,9 @@
+       void
+       pop_back() _GLIBCXX_NOEXCEPT
+       {
++#if __google_stl_debug_deque
++	if (empty()) __throw_logic_error("pop_back() on empty deque");
++#endif
+ 	if (this->_M_impl._M_finish._M_cur
+ 	    != this->_M_impl._M_finish._M_first)
+ 	  {
+@@ -1540,6 +1572,10 @@
+       iterator
+       insert(const_iterator __position, size_type __n, const value_type& __x)
+       {
++#if __google_stl_debug_deque
++	if (__position < this->begin() || __position > this->end())
++	  __throw_logic_error("insert() at invalid position");
++#endif
+ 	difference_type __offset = __position - cbegin();
+ 	_M_fill_insert(__position._M_const_cast(), __n, __x);
+ 	return begin() + __offset;
+@@ -1556,7 +1592,13 @@
+        */
+       void
+       insert(iterator __position, size_type __n, const value_type& __x)
+-      { _M_fill_insert(__position, __n, __x); }
++      {
++#if __google_stl_debug_deque
++	if (__position < this->begin() || __position > this->end())
++	  __throw_logic_error("insert() at invalid position");
++#endif
++	_M_fill_insert(__position, __n, __x);
++      }
+ #endif
+ 
+ #if __cplusplus >= 201103L
+@@ -1577,6 +1619,10 @@
+         insert(const_iterator __position, _InputIterator __first,
+ 	       _InputIterator __last)
+         {
++#if __google_stl_debug_vector
++	  if (__position < this->begin() || __position > this->end())
++	    __throw_out_of_range(__N("insert() at invalid position"));
++#endif
+ 	  difference_type __offset = __position - cbegin();
+ 	  _M_insert_dispatch(__position._M_const_cast(),
+ 			     __first, __last, __false_type());
+diff -urN ./include/bits/stl_tree.h ../google/libstdc++-v3/include/bits/stl_tree.h
+--- ./include/bits/stl_tree.h	2014-06-03 21:26:05.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/stl_tree.h	2015-11-30 10:46:40.754488666 +0300
+@@ -486,7 +486,47 @@
+ 	  }	    
+ 	};
+ 
++      // Local modification: if __google_stl_debug_rbtree is defined to
++      // non-zero value, check sort predicate for strict weak ordering.
++      // Google ref b/1731200.
++#if __google_stl_debug_rbtree
++      template<typename _KeyCompare>
++      struct _CheckedCompare {
++        _KeyCompare _M_key_compare;
++
++        _CheckedCompare(): _M_key_compare() { }
++        _CheckedCompare(const _KeyCompare & __comp): _M_key_compare(__comp) { }
++
++	// Template arg required to avoid duplicating code in the two op()
++	// operators below.  User-provided _M_key_compare may not be const,
++	// but needs to be callable from our const op().
++	// Google ref. b/1731200.
++	template <typename _KeyCompareT>
++        static bool _M_compare_with(_KeyCompareT& __comp, const _Key& __x, const _Key& __y) {
++          if (__comp(__x, __x))
++            __throw_runtime_error("strict weak ordering: (__x LT __x) != false");
++          if (__comp(__y, __y))
++            __throw_runtime_error("strict weak ordering: (__y LT __y) != false");
++          bool lt = __comp(__x, __y);
++          if (lt && __comp(__y, __x))
++            __throw_runtime_error("strict weak ordering: ((__x LT __y) && (__y LT __x)) != false");
++          return lt;
++        }
++        bool operator()(const _Key& __x, const _Key& __y) const {
++	  return _M_compare_with(_M_key_compare, __x, __y);
++        }
++
++        bool operator()(const _Key& __x, const _Key& __y) {
++	  return _M_compare_with(_M_key_compare, __x, __y);
++        }
++
++        operator _KeyCompare() const { return _M_key_compare; }
++      };
++
++      _Rb_tree_impl<_CheckedCompare<_Compare> > _M_impl;
++#else
+       _Rb_tree_impl<_Compare> _M_impl;
++#endif
+ 
+     protected:
+       _Base_ptr&
+diff -urN ./include/bits/stl_uninitialized.h ../google/libstdc++-v3/include/bits/stl_uninitialized.h
+--- ./include/bits/stl_uninitialized.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/stl_uninitialized.h	2015-11-30 10:46:40.754488666 +0300
+@@ -115,8 +115,9 @@
+       const bool __assignable = true;
+ #else
+       // trivial types can have deleted assignment
+-      typedef typename iterator_traits<_InputIterator>::reference _RefType;
+-      const bool __assignable = is_assignable<_ValueType1, _RefType>::value;
++      typedef typename iterator_traits<_InputIterator>::reference _RefType1;
++      typedef typename iterator_traits<_ForwardIterator>::reference _RefType2;
++      const bool __assignable = is_assignable<_RefType2, _RefType1>::value;
+ #endif
+ 
+       return std::__uninitialized_copy<__is_trivial(_ValueType1)
+diff -urN ./include/bits/stl_vector.h ../google/libstdc++-v3/include/bits/stl_vector.h
+--- ./include/bits/stl_vector.h	2014-05-07 19:05:22.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/stl_vector.h	2015-11-30 10:46:40.754488666 +0300
+@@ -63,6 +63,20 @@
+ #include <initializer_list>
+ #endif
+ 
++#ifdef _GLIBCXX_ADDRESS_SANITIZER_ANNOTATIONS
++extern "C" void
++__sanitizer_annotate_contiguous_container(const void *, const void *,
++					  const void *, const void *);
++#else
++// When sanitizer annotataions are off, avoid bazillion of no-op
++// functions that blow up debug binary size.
++#define __sanitizer_vector_annotate_new()
++#define __sanitizer_vector_annotate_delete()
++#define __sanitizer_vector_annotate_increase(a)
++#define __sanitizer_vector_annotate_shrink(a)
++#endif  // _GLIBCXX_ADDRESS_SANITIZER_ANNOTATIONS
++
++
+ namespace std _GLIBCXX_VISIBILITY(default)
+ {
+ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
+@@ -158,7 +172,12 @@
+ 
+       ~_Vector_base() _GLIBCXX_NOEXCEPT
+       { _M_deallocate(this->_M_impl._M_start, this->_M_impl._M_end_of_storage
+-		      - this->_M_impl._M_start); }
++		      - this->_M_impl._M_start);
++#if __google_stl_debug_dangling_vector
++        this->_M_impl._M_start = 0;
++        this->_M_impl._M_finish = reinterpret_cast<_Tp*>(~0UL);
++#endif
++      }
+ 
+     public:
+       _Vector_impl _M_impl;
+@@ -243,6 +262,31 @@
+       using _Base::_M_impl;
+       using _Base::_M_get_Tp_allocator;
+ 
++      bool _M_is_valid() const
++      {
++        if (this->_M_impl._M_end_of_storage == 0
++	    && this->_M_impl._M_start == 0
++	    && this->_M_impl._M_finish == 0)
++	  return true;
++
++	if (this->_M_impl._M_start <= this->_M_impl._M_finish
++	    && this->_M_impl._M_finish <= this->_M_impl._M_end_of_storage)
++	  {
++	    if (this->_M_impl._M_start < this->_M_impl._M_end_of_storage)
++	      return true;
++	    else if (this->_M_impl._M_start == this->_M_impl._M_end_of_storage
++		     && this->_M_impl._M_start == this->_M_impl._M_finish)
++	      {
++		pointer _0xcdcd;
++
++		__builtin_memset(&_0xcdcd, 0xcd, sizeof(_0xcdcd));
++		return this->_M_impl._M_finish != _0xcdcd;
++	      }
++	  }
++
++	return false;
++      }
++
+     public:
+       // [23.2.4.1] construct/copy/destroy
+       // (assign() and get_allocator() are also listed in this section)
+@@ -545,7 +589,13 @@
+        */
+       iterator
+       begin() _GLIBCXX_NOEXCEPT
+-      { return iterator(this->_M_impl._M_start); }
++      {
++#if __google_stl_debug_dangling_vector
++        if (!this->_M_is_valid())
++          __throw_logic_error("begin() on corrupt (dangling?) vector");
++#endif
++	return iterator(this->_M_impl._M_start);
++      }
+ 
+       /**
+        *  Returns a read-only (constant) iterator that points to the
+@@ -554,7 +604,13 @@
+        */
+       const_iterator
+       begin() const _GLIBCXX_NOEXCEPT
+-      { return const_iterator(this->_M_impl._M_start); }
++      {
++#if __google_stl_debug_dangling_vector
++        if (!this->_M_is_valid())
++          __throw_logic_error("begin() on corrupt (dangling?) vector");
++#endif
++	return const_iterator(this->_M_impl._M_start);
++      }
+ 
+       /**
+        *  Returns a read/write iterator that points one past the last
+@@ -563,7 +619,13 @@
+        */
+       iterator
+       end() _GLIBCXX_NOEXCEPT
+-      { return iterator(this->_M_impl._M_finish); }
++      {
++#if __google_stl_debug_dangling_vector
++        if (!this->_M_is_valid())
++          __throw_logic_error("end() on corrupt (dangling?) vector");
++#endif
++	return iterator(this->_M_impl._M_finish);
++      }
+ 
+       /**
+        *  Returns a read-only (constant) iterator that points one past
+@@ -572,7 +634,13 @@
+        */
+       const_iterator
+       end() const _GLIBCXX_NOEXCEPT
+-      { return const_iterator(this->_M_impl._M_finish); }
++      {
++#if __google_stl_debug_dangling_vector
++        if (!this->_M_is_valid())
++          __throw_logic_error("end() on corrupt (dangling?) vector");
++#endif
++	return const_iterator(this->_M_impl._M_finish);
++      }
+ 
+       /**
+        *  Returns a read/write reverse iterator that points to the
+@@ -652,7 +720,13 @@
+       /**  Returns the number of elements in the %vector.  */
+       size_type
+       size() const _GLIBCXX_NOEXCEPT
+-      { return size_type(this->_M_impl._M_finish - this->_M_impl._M_start); }
++      {
++#if __google_stl_debug_dangling_vector
++        if (!this->_M_is_valid())
++          __throw_logic_error("size() on corrupt (dangling?) vector");
++#endif
++	return size_type(this->_M_impl._M_finish - this->_M_impl._M_start);
++      }
+ 
+       /**  Returns the size() of the largest possible %vector.  */
+       size_type
+@@ -732,7 +806,12 @@
+        */
+       size_type
+       capacity() const _GLIBCXX_NOEXCEPT
+-      { return size_type(this->_M_impl._M_end_of_storage
++      {
++#if __google_stl_debug_dangling_vector
++        if (!this->_M_is_valid())
++          __throw_logic_error("capacity() on corrupt (dangling?) vector");
++#endif
++	return size_type(this->_M_impl._M_end_of_storage
+ 			 - this->_M_impl._M_start); }
+ 
+       /**
+@@ -774,10 +853,18 @@
+        *  Note that data access with this operator is unchecked and
+        *  out_of_range lookups are not defined. (For checked lookups
+        *  see at().)
++       *
++       *  Local modification: range checks are performed if
++       *  __google_stl_debug_vector is defined to non-zero.
+        */
+       reference
+       operator[](size_type __n) _GLIBCXX_NOEXCEPT
+-      { return *(this->_M_impl._M_start + __n); }
++      {
++#if __google_stl_debug_vector
++	_M_range_check(__n);
++#endif
++	return *(this->_M_impl._M_start + __n);
++      }
+ 
+       /**
+        *  @brief  Subscript access to the data contained in the %vector.
+@@ -789,10 +876,18 @@
+        *  Note that data access with this operator is unchecked and
+        *  out_of_range lookups are not defined. (For checked lookups
+        *  see at().)
++       *
++       *  Local modification: range checks are performed if
++       *  __google_stl_debug_vector is defined to non-zero.
+        */
+       const_reference
+       operator[](size_type __n) const _GLIBCXX_NOEXCEPT
+-      { return *(this->_M_impl._M_start + __n); }
++      {
++#if __google_stl_debug_vector
++	_M_range_check(__n);
++#endif
++	return *(this->_M_impl._M_start + __n);
++      }
+ 
+     protected:
+       /// Safety check used only from at().
+@@ -849,7 +944,12 @@
+        */
+       reference
+       front() _GLIBCXX_NOEXCEPT
+-      { return *begin(); }
++      {
++#if __google_stl_debug_vector
++        if (empty()) __throw_logic_error("front() on empty vector");
++#endif
++        return *begin();
++      }
+ 
+       /**
+        *  Returns a read-only (constant) reference to the data at the first
+@@ -857,7 +957,12 @@
+        */
+       const_reference
+       front() const _GLIBCXX_NOEXCEPT
+-      { return *begin(); }
++      {
++#if __google_stl_debug_vector
++        if (empty()) __throw_logic_error("front() on empty vector");
++#endif
++        return *begin();
++      }
+ 
+       /**
+        *  Returns a read/write reference to the data at the last
+@@ -865,7 +970,12 @@
+        */
+       reference
+       back() _GLIBCXX_NOEXCEPT
+-      { return *(end() - 1); }
++      {
++#if __google_stl_debug_vector
++        if (empty()) __throw_logic_error("back() on empty vector");
++#endif
++        return *(end() - 1);
++      }
+       
+       /**
+        *  Returns a read-only (constant) reference to the data at the
+@@ -873,7 +983,12 @@
+        */
+       const_reference
+       back() const _GLIBCXX_NOEXCEPT
+-      { return *(end() - 1); }
++      {
++#if __google_stl_debug_vector
++        if (empty()) __throw_logic_error("back() on empty vector");
++#endif
++        return *(end() - 1);
++      }
+ 
+       // _GLIBCXX_RESOLVE_LIB_DEFECTS
+       // DR 464. Suggestion for new member functions in standard containers.
+@@ -888,7 +1003,12 @@
+       pointer
+ #endif
+       data() _GLIBCXX_NOEXCEPT
+-      { return _M_data_ptr(this->_M_impl._M_start); }
++      {
++#if __google_stl_debug_vector
++        if (empty()) return 0;
++#endif
++        return _M_data_ptr(this->_M_impl._M_start); 
++      }
+ 
+ #if __cplusplus >= 201103L
+       const _Tp*
+@@ -896,7 +1016,12 @@
+       const_pointer
+ #endif
+       data() const _GLIBCXX_NOEXCEPT
+-      { return _M_data_ptr(this->_M_impl._M_start); }
++      {
++#if __google_stl_debug_vector
++        if (empty()) return 0;
++#endif
++        return _M_data_ptr(this->_M_impl._M_start);
++      }
+ 
+       // [23.2.4.3] modifiers
+       /**
+@@ -914,6 +1039,7 @@
+       {
+ 	if (this->_M_impl._M_finish != this->_M_impl._M_end_of_storage)
+ 	  {
++	    __sanitizer_vector_annotate_increase(1);
+ 	    _Alloc_traits::construct(this->_M_impl, this->_M_impl._M_finish,
+ 	                             __x);
+ 	    ++this->_M_impl._M_finish;
+@@ -948,8 +1074,14 @@
+       void
+       pop_back() _GLIBCXX_NOEXCEPT
+       {
++#if __google_stl_debug_vector
++	if (this->empty())
++	  __throw_logic_error(__N("pop_back() on empty vector"));
++#endif
++	size_type __old_size = size();
+ 	--this->_M_impl._M_finish;
+ 	_Alloc_traits::destroy(this->_M_impl, this->_M_impl._M_finish);
++	__sanitizer_vector_annotate_shrink(__old_size);
+       }
+ 
+ #if __cplusplus >= 201103L
+@@ -1050,6 +1182,10 @@
+       iterator
+       insert(const_iterator __position, size_type __n, const value_type& __x)
+       {
++#if __google_stl_debug_vector
++	if (__position < this->begin() || __position > this->end())
++	  __throw_out_of_range(__N("insert() at invalid position"));
++#endif
+ 	difference_type __offset = __position - cbegin();
+ 	_M_fill_insert(begin() + __offset, __n, __x);
+ 	return begin() + __offset;
+@@ -1070,7 +1206,13 @@
+        */
+       void
+       insert(iterator __position, size_type __n, const value_type& __x)
+-      { _M_fill_insert(__position, __n, __x); }
++      {
++#if __google_stl_debug_vector
++	if (__position < this->begin() || __position > this->end())
++	  __throw_out_of_range(__N("insert() at invalid position"));
++#endif
++	_M_fill_insert(__position, __n, __x);
++      }
+ #endif
+ 
+ #if __cplusplus >= 201103L
+@@ -1095,6 +1237,10 @@
+         insert(const_iterator __position, _InputIterator __first,
+ 	       _InputIterator __last)
+         {
++#if __google_stl_debug_vector
++	  if (__position < this->begin() || __position > this->end())
++	    __throw_out_of_range(__N("insert() at invalid position"));
++#endif
+ 	  difference_type __offset = __position - cbegin();
+ 	  _M_insert_dispatch(begin() + __offset,
+ 			     __first, __last, __false_type());
+@@ -1120,6 +1266,10 @@
+         insert(iterator __position, _InputIterator __first,
+ 	       _InputIterator __last)
+         {
++#if __google_stl_debug_vector
++	  if (__position < this->begin() || __position > this->end())
++	    __throw_out_of_range(__N("insert() at invalid position"));
++#endif
+ 	  // Check whether it's an integral type.  If so, it's not an iterator.
+ 	  typedef typename std::__is_integer<_InputIterator>::__type _Integral;
+ 	  _M_insert_dispatch(__position, __first, __last, _Integral());
+@@ -1196,6 +1346,10 @@
+       noexcept(_Alloc_traits::_S_nothrow_swap())
+ #endif
+       {
++#if __google_stl_debug_dangling_vector
++        if (!this->_M_is_valid() || !__x._M_is_valid())
++          __throw_logic_error("swap() on corrupt (dangling?) vector");
++#endif
+ 	this->_M_impl._M_swap_data(__x._M_impl);
+ 	_Alloc_traits::_S_on_swap(_M_get_Tp_allocator(),
+ 	                          __x._M_get_Tp_allocator());
+@@ -1209,7 +1363,13 @@
+        */
+       void
+       clear() _GLIBCXX_NOEXCEPT
+-      { _M_erase_at_end(this->_M_impl._M_start); }
++      {
++#if __google_stl_debug_dangling_vector
++        if (!this->_M_is_valid())
++          __throw_logic_error("clear() on corrupt (dangling?) vector");
++#endif
++	_M_erase_at_end(this->_M_impl._M_start);
++      }
+ 
+     protected:
+       /**
+@@ -1435,8 +1595,10 @@
+       void
+       _M_erase_at_end(pointer __pos) _GLIBCXX_NOEXCEPT
+       {
++	size_type __old_size = size();
+ 	std::_Destroy(__pos, this->_M_impl._M_finish, _M_get_Tp_allocator());
+ 	this->_M_impl._M_finish = __pos;
++	__sanitizer_vector_annotate_shrink(__old_size);
+       }
+ 
+       iterator
+@@ -1493,6 +1655,72 @@
+ 	_M_data_ptr(_Ptr __ptr) const
+ 	{ return __ptr; }
+ #endif
++
++#ifdef _GLIBCXX_ADDRESS_SANITIZER_ANNOTATIONS
++    private:
++      template<class T, class U>
++      struct __is_same_allocator {
++	static void __annotate_contiguous_container(pointer __beg,
++						    pointer __end,
++						    pointer __old_mid,
++						    pointer __new_mid) { }
++      };
++      // The following functions are no-ops outside of AddressSanitizer mode.
++      // We call annotatations only for the default Allocator because
++      // other allocators may not meet the AddressSanitizer alignment
++      // constraints.
++      // See the documentation for __sanitizer_annotate_contiguous_container
++      // for more details.
++      template <class T> struct __is_same_allocator<T, T> {
++	static void __annotate_contiguous_container(pointer __beg,
++						    pointer __end,
++						    pointer __old_mid,
++						    pointer __new_mid) {
++	  if (__beg)
++	    __sanitizer_annotate_contiguous_container(__beg,
++						      __end,
++						      __old_mid,
++						      __new_mid);
++	}
++      };
++
++      void __annotate_contiguous_container(pointer __beg,
++					   pointer __end,
++					   pointer __old_mid,
++					   pointer __new_mid)
++      {
++	__is_same_allocator<_Alloc, std::allocator<_Tp> >::
++	  __annotate_contiguous_container(__beg, __end, __old_mid, __new_mid);
++      }
++      void __sanitizer_vector_annotate_new()
++      {
++	__annotate_contiguous_container(_M_impl._M_start,
++					_M_impl._M_end_of_storage,
++					_M_impl._M_end_of_storage,
++					_M_impl._M_finish);
++      }
++      void __sanitizer_vector_annotate_delete()
++      {
++	__annotate_contiguous_container(_M_impl._M_start,
++					_M_impl._M_end_of_storage,
++					_M_impl._M_finish,
++					_M_impl._M_end_of_storage);
++      }
++      void __sanitizer_vector_annotate_increase(size_type __n)
++      {
++	__annotate_contiguous_container(_M_impl._M_start,
++					_M_impl._M_end_of_storage,
++					_M_impl._M_finish,
++					_M_impl._M_finish + __n);
++      }
++      void __sanitizer_vector_annotate_shrink(size_type __old_size)
++      {
++	__annotate_contiguous_container(_M_impl._M_start,
++					_M_impl._M_end_of_storage,
++					_M_impl._M_start + __old_size,
++					_M_impl._M_finish);
++      }
++#endif	// _GLIBCXX_ADDRESS_SANITIZER_ANNOTATIONS
+     };
+ 
+ 
+diff -urN ./include/bits/vector.tcc ../google/libstdc++-v3/include/bits/vector.tcc
+--- ./include/bits/vector.tcc	2014-10-01 16:34:23.000000000 +0400
++++ ../google/libstdc++-v3/include/bits/vector.tcc	2015-11-30 10:46:40.754488666 +0300
+@@ -73,6 +73,7 @@
+ 	  pointer __tmp = _M_allocate_and_copy(__n,
+ 	    _GLIBCXX_MAKE_MOVE_IF_NOEXCEPT_ITERATOR(this->_M_impl._M_start),
+ 	    _GLIBCXX_MAKE_MOVE_IF_NOEXCEPT_ITERATOR(this->_M_impl._M_finish));
++	  __sanitizer_vector_annotate_delete();
+ 	  std::_Destroy(this->_M_impl._M_start, this->_M_impl._M_finish,
+ 			_M_get_Tp_allocator());
+ 	  _M_deallocate(this->_M_impl._M_start,
+@@ -81,6 +82,7 @@
+ 	  this->_M_impl._M_start = __tmp;
+ 	  this->_M_impl._M_finish = __tmp + __old_size;
+ 	  this->_M_impl._M_end_of_storage = this->_M_impl._M_start + __n;
++	  __sanitizer_vector_annotate_new();
+ 	}
+     }
+ 
+@@ -93,6 +95,7 @@
+       {
+ 	if (this->_M_impl._M_finish != this->_M_impl._M_end_of_storage)
+ 	  {
++	    __sanitizer_vector_annotate_increase(1);
+ 	    _Alloc_traits::construct(this->_M_impl, this->_M_impl._M_finish,
+ 				     std::forward<_Args>(__args)...);
+ 	    ++this->_M_impl._M_finish;
+@@ -111,10 +114,15 @@
+     insert(iterator __position, const value_type& __x)
+ #endif
+     {
++#if __google_stl_debug_vector
++      if (__position < this->begin() || __position > this->end())
++	__throw_out_of_range(__N("insert() at invalid position"));
++#endif
+       const size_type __n = __position - begin();
+       if (this->_M_impl._M_finish != this->_M_impl._M_end_of_storage
+ 	  && __position == end())
+ 	{
++	  __sanitizer_vector_annotate_increase(1);
+ 	  _Alloc_traits::construct(this->_M_impl, this->_M_impl._M_finish, __x);
+ 	  ++this->_M_impl._M_finish;
+ 	}
+@@ -141,10 +149,15 @@
+     vector<_Tp, _Alloc>::
+     _M_erase(iterator __position)
+     {
++#if __google_stl_debug_vector
++      if (__position < this->begin() || __position >= this->end())
++	__throw_out_of_range(__N("erase() at invalid position"));
++#endif
+       if (__position + 1 != end())
+ 	_GLIBCXX_MOVE3(__position + 1, end(), __position);
+       --this->_M_impl._M_finish;
+       _Alloc_traits::destroy(this->_M_impl, this->_M_impl._M_finish);
++      __sanitizer_vector_annotate_shrink(size() + 1);
+       return __position;
+     }
+ 
+@@ -153,6 +166,10 @@
+     vector<_Tp, _Alloc>::
+     _M_erase(iterator __first, iterator __last)
+     {
++#if __google_stl_debug_vector
++      if (__first < this->begin() || __first > __last || __last > this->end())
++	__throw_out_of_range("erase() invalid range");
++#endif
+       if (__first != __last)
+ 	{
+ 	  if (__last != end())
+@@ -167,8 +184,13 @@
+     vector<_Tp, _Alloc>::
+     operator=(const vector<_Tp, _Alloc>& __x)
+     {
++#if __google_stl_debug_dangling_vector
++      if (!this->_M_is_valid() || !__x._M_is_valid())
++	__throw_logic_error("operator=() on corrupt (dangling?) vector");
++#endif
+       if (&__x != this)
+ 	{
++	  __sanitizer_vector_annotate_delete();
+ #if __cplusplus >= 201103L
+ 	  if (_Alloc_traits::_S_propagate_on_copy_assign())
+ 	    {
+@@ -216,6 +238,7 @@
+ 					  _M_get_Tp_allocator());
+ 	    }
+ 	  this->_M_impl._M_finish = this->_M_impl._M_start + __xlen;
++	  __sanitizer_vector_annotate_new();
+ 	}
+       return *this;
+     }
+@@ -227,11 +250,13 @@
+     {
+       if (__n > capacity())
+ 	{
++	  __sanitizer_vector_annotate_delete();
+ 	  vector __tmp(__n, __val, _M_get_Tp_allocator());
+ 	  __tmp._M_impl._M_swap_data(this->_M_impl);
+ 	}
+       else if (__n > size())
+ 	{
++	  __sanitizer_vector_annotate_increase(__n - size());
+ 	  std::fill(begin(), end(), __val);
+ 	  std::__uninitialized_fill_n_a(this->_M_impl._M_finish,
+ 					__n - size(), __val,
+@@ -271,6 +296,7 @@
+ 	if (__len > capacity())
+ 	  {
+ 	    pointer __tmp(_M_allocate_and_copy(__len, __first, __last));
++	    __sanitizer_vector_annotate_delete();
+ 	    std::_Destroy(this->_M_impl._M_start, this->_M_impl._M_finish,
+ 			  _M_get_Tp_allocator());
+ 	    _M_deallocate(this->_M_impl._M_start,
+@@ -279,11 +305,13 @@
+ 	    this->_M_impl._M_start = __tmp;
+ 	    this->_M_impl._M_finish = this->_M_impl._M_start + __len;
+ 	    this->_M_impl._M_end_of_storage = this->_M_impl._M_finish;
++	    __sanitizer_vector_annotate_new();
+ 	  }
+ 	else if (size() >= __len)
+ 	  _M_erase_at_end(std::copy(__first, __last, this->_M_impl._M_start));
+ 	else
+ 	  {
++	    __sanitizer_vector_annotate_increase(__len - size());
+ 	    _ForwardIterator __mid = __first;
+ 	    std::advance(__mid, size());
+ 	    std::copy(__first, __mid, this->_M_impl._M_start);
+@@ -301,10 +329,15 @@
+       vector<_Tp, _Alloc>::
+       emplace(const_iterator __position, _Args&&... __args)
+       {
++#if __google_stl_debug_vector
++	if (__position < this->begin() || __position > this->end())
++	  __throw_out_of_range(__N("emplace() at invalid position"));
++#endif
+ 	const size_type __n = __position - begin();
+ 	if (this->_M_impl._M_finish != this->_M_impl._M_end_of_storage
+ 	    && __position == end())
+ 	  {
++	    __sanitizer_vector_annotate_increase(1);
+ 	    _Alloc_traits::construct(this->_M_impl, this->_M_impl._M_finish,
+ 				     std::forward<_Args>(__args)...);
+ 	    ++this->_M_impl._M_finish;
+@@ -329,6 +362,7 @@
+     {
+       if (this->_M_impl._M_finish != this->_M_impl._M_end_of_storage)
+ 	{
++	  __sanitizer_vector_annotate_increase(1);
+ 	  _Alloc_traits::construct(this->_M_impl, this->_M_impl._M_finish,
+ 			           _GLIBCXX_MOVE(*(this->_M_impl._M_finish
+ 				                   - 1)));
+@@ -389,6 +423,7 @@
+ 	      _M_deallocate(__new_start, __len);
+ 	      __throw_exception_again;
+ 	    }
++	  __sanitizer_vector_annotate_delete();
+ 	  std::_Destroy(this->_M_impl._M_start, this->_M_impl._M_finish,
+ 			_M_get_Tp_allocator());
+ 	  _M_deallocate(this->_M_impl._M_start,
+@@ -397,6 +432,7 @@
+ 	  this->_M_impl._M_start = __new_start;
+ 	  this->_M_impl._M_finish = __new_finish;
+ 	  this->_M_impl._M_end_of_storage = __new_start + __len;
++	  __sanitizer_vector_annotate_new();
+ 	}
+     }
+ 
+@@ -433,6 +469,7 @@
+ 	    _M_deallocate(__new_start, __len);
+ 	    __throw_exception_again;
+ 	  }
++	__sanitizer_vector_annotate_delete();
+ 	std::_Destroy(this->_M_impl._M_start, this->_M_impl._M_finish,
+ 		      _M_get_Tp_allocator());
+ 	_M_deallocate(this->_M_impl._M_start,
+@@ -441,6 +478,7 @@
+ 	this->_M_impl._M_start = __new_start;
+ 	this->_M_impl._M_finish = __new_finish;
+ 	this->_M_impl._M_end_of_storage = __new_start + __len;
++	__sanitizer_vector_annotate_new();
+       }
+ #endif
+ 
+@@ -454,6 +492,7 @@
+ 	  if (size_type(this->_M_impl._M_end_of_storage
+ 			- this->_M_impl._M_finish) >= __n)
+ 	    {
++	      __sanitizer_vector_annotate_increase(__n);
+ 	      value_type __x_copy = __x;
+ 	      const size_type __elems_after = end() - __position;
+ 	      pointer __old_finish(this->_M_impl._M_finish);
+@@ -522,6 +561,7 @@
+ 		  _M_deallocate(__new_start, __len);
+ 		  __throw_exception_again;
+ 		}
++	      __sanitizer_vector_annotate_delete();
+ 	      std::_Destroy(this->_M_impl._M_start, this->_M_impl._M_finish,
+ 			    _M_get_Tp_allocator());
+ 	      _M_deallocate(this->_M_impl._M_start,
+@@ -530,6 +570,7 @@
+ 	      this->_M_impl._M_start = __new_start;
+ 	      this->_M_impl._M_finish = __new_finish;
+ 	      this->_M_impl._M_end_of_storage = __new_start + __len;
++	      __sanitizer_vector_annotate_new();
+ 	    }
+ 	}
+     }
+@@ -545,6 +586,7 @@
+ 	  if (size_type(this->_M_impl._M_end_of_storage
+ 			- this->_M_impl._M_finish) >= __n)
+ 	    {
++	      __sanitizer_vector_annotate_increase(__n);
+ 	      std::__uninitialized_default_n_a(this->_M_impl._M_finish,
+ 					       __n, _M_get_Tp_allocator());
+ 	      this->_M_impl._M_finish += __n;
+@@ -573,6 +615,7 @@
+ 		  _M_deallocate(__new_start, __len);
+ 		  __throw_exception_again;
+ 		}
++	      __sanitizer_vector_annotate_delete();
+ 	      std::_Destroy(this->_M_impl._M_start, this->_M_impl._M_finish,
+ 			    _M_get_Tp_allocator());
+ 	      _M_deallocate(this->_M_impl._M_start,
+@@ -581,6 +624,7 @@
+ 	      this->_M_impl._M_start = __new_start;
+ 	      this->_M_impl._M_finish = __new_finish;
+ 	      this->_M_impl._M_end_of_storage = __new_start + __len;
++	      __sanitizer_vector_annotate_new();
+ 	    }
+ 	}
+     }
+@@ -592,7 +636,10 @@
+     {
+       if (capacity() == size())
+ 	return false;
+-      return std::__shrink_to_fit_aux<vector>::_S_do_it(*this);
++      __sanitizer_vector_annotate_delete();
++      bool __res = std::__shrink_to_fit_aux<vector>::_S_do_it(*this);
++      __sanitizer_vector_annotate_new();
++      return __res;
+     }
+ #endif
+ 
+@@ -623,6 +670,7 @@
+ 	    if (size_type(this->_M_impl._M_end_of_storage
+ 			  - this->_M_impl._M_finish) >= __n)
+ 	      {
++		__sanitizer_vector_annotate_increase(__n);
+ 		const size_type __elems_after = end() - __position;
+ 		pointer __old_finish(this->_M_impl._M_finish);
+ 		if (__elems_after > __n)
+@@ -680,6 +728,7 @@
+ 		    _M_deallocate(__new_start, __len);
+ 		    __throw_exception_again;
+ 		  }
++		__sanitizer_vector_annotate_delete();
+ 		std::_Destroy(this->_M_impl._M_start, this->_M_impl._M_finish,
+ 			      _M_get_Tp_allocator());
+ 		_M_deallocate(this->_M_impl._M_start,
+@@ -688,6 +737,7 @@
+ 		this->_M_impl._M_start = __new_start;
+ 		this->_M_impl._M_finish = __new_finish;
+ 		this->_M_impl._M_end_of_storage = __new_start + __len;
++		__sanitizer_vector_annotate_new();
+ 	      }
+ 	  }
+       }
+diff -urN ./include/c_compatibility/complex.h ../google/libstdc++-v3/include/c_compatibility/complex.h
+--- ./include/c_compatibility/complex.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/c_compatibility/complex.h	2015-11-30 10:46:40.764488665 +0300
+@@ -26,21 +26,29 @@
+  *  This is a Standard C++ Library header.
+  */
+ 
+-#include <bits/c++config.h>
++#ifndef _GLIBCXX_COMPLEX_H
++#define _GLIBCXX_COMPLEX_H 1
+ 
+ #if __cplusplus >= 201103L
+ # include <ccomplex>
+-#endif
++#else // C++98 and C++03
+ 
+-#if _GLIBCXX_HAVE_COMPLEX_H
+-# include_next <complex.h>
+-# ifdef _GLIBCXX_COMPLEX
+-// See PR56111, keep the macro in C++03 if possible.
+-#  undef complex
+-# endif
++// The C++ <complex> header is incompatible with the C99 <complex.h> header,
++// they cannot be included into a single translation unit portably. Notably,
++// C++11's <ccomplex> does not include C99's <complex.h> and in C++11's
++// <complex.h> is defined to provide only what C++11's <ccomplex> does in a
++// different namespace.
++#ifdef _GLIBCXX_COMPLEX
++# error Cannot include both <complex> and C99's <complex.h>
+ #endif
+ 
+-#ifndef _GLIBCXX_COMPLEX_H
+-#define _GLIBCXX_COMPLEX_H 1
++// Delegate to a system complex.h if we don't provide it as part of the C++
++// implementation.
++#include_next <complex.h>
++
++// Provide a define indicating that a C99-style <complex.h> has been included.
++#define _GLIBCXX_C99_COMPLEX_H
++
++#endif // C++98 and C++03
+ 
+ #endif
+diff -urN ./include/debug/array ../google/libstdc++-v3/include/debug/array
+--- ./include/debug/array	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/debug/array	2015-11-30 10:46:40.764488665 +0300
+@@ -150,15 +150,15 @@
+       operator[](size_type __n) noexcept
+       {
+ 	__glibcxx_check_subscript(__n);
+-	return _AT_Type::_S_ref(_M_elems, __n);
++	return *_AT_Type::_S_ptr(_M_elems, __n);
+       }
+ 
+       constexpr const_reference
+       operator[](size_type __n) const noexcept
+       {
+-	return __n < _Nm ? _AT_Type::_S_ref(_M_elems, __n)
++	return __n < _Nm ? *_AT_Type::_S_ptr(_M_elems, __n)
+ 	 : (_GLIBCXX_THROW_OR_ABORT(_Array_check_subscript<_Nm>(__n)),
+-	    _AT_Type::_S_ref(_M_elems, 0));
++	    *_AT_Type::_S_ptr(_M_elems, 0));
+       }
+ 
+       reference
+@@ -169,7 +169,7 @@
+ 				            "(which is %zu) >= _Nm "
+ 					    "(which is %zu)"),
+ 					__n, _Nm);
+-	return _AT_Type::_S_ref(_M_elems, __n);
++	return *_AT_Type::_S_ptr(_M_elems, __n);
+       }
+ 
+       constexpr const_reference
+@@ -177,11 +177,11 @@
+       {
+ 	// Result of conditional expression must be an lvalue so use
+ 	// boolean ? lvalue : (throw-expr, lvalue)
+-	return __n < _Nm ? _AT_Type::_S_ref(_M_elems, __n)
++	return __n < _Nm ? *_AT_Type::_S_ptr(_M_elems, __n)
+ 	  : (std::__throw_out_of_range_fmt(__N("array::at: __n (which is %zu) "
+ 					       ">= _Nm (which is %zu)"),
+ 					   __n, _Nm),
+-	     _AT_Type::_S_ref(_M_elems, 0));
++	     *_AT_Type::_S_ptr(_M_elems, 0));
+       }
+ 
+       reference 
+@@ -194,9 +194,9 @@
+       constexpr const_reference 
+       front() const noexcept
+       {
+-	return _Nm ? _AT_Type::_S_ref(_M_elems, 0)
++	return _Nm ? *_AT_Type::_S_ptr(_M_elems, 0)
+ 	  : (_GLIBCXX_THROW_OR_ABORT(_Array_check_nonempty<_Nm>()),
+-	     _AT_Type::_S_ref(_M_elems, 0));
++	     *_AT_Type::_S_ptr(_M_elems, 0));
+       }
+ 
+       reference 
+@@ -209,18 +209,18 @@
+       constexpr const_reference 
+       back() const noexcept
+       {
+-	return _Nm ? _AT_Type::_S_ref(_M_elems, _Nm - 1)
++	return _Nm ? *_AT_Type::_S_ptr(_M_elems, _Nm - 1)
+ 	  : (_GLIBCXX_THROW_OR_ABORT(_Array_check_nonempty<_Nm>()),
+-	     _AT_Type::_S_ref(_M_elems, 0));
++	     *_AT_Type::_S_ptr(_M_elems, 0));
+       }
+ 
+       pointer
+       data() noexcept
+-      { return std::__addressof(_AT_Type::_S_ref(_M_elems, 0)); }
++      { return _AT_Type::_S_ptr(_M_elems, 0); }
+ 
+       const_pointer
+       data() const noexcept
+-      { return std::__addressof(_AT_Type::_S_ref(_M_elems, 0)); }
++      { return _AT_Type::_S_ptrr(_M_elems, 0); }
+     };
+ 
+   // Array comparisons.
+@@ -269,8 +269,8 @@
+     get(array<_Tp, _Nm>& __arr) noexcept
+     {
+       static_assert(_Int < _Nm, "index is out of bounds");
+-      return _GLIBCXX_STD_C::__array_traits<_Tp, _Nm>::
+-	_S_ref(__arr._M_elems, _Int);
++      return *_GLIBCXX_STD_C::__array_traits<_Tp, _Nm>::
++	_S_ptr(__arr._M_elems, _Int);
+     }
+ 
+   template<std::size_t _Int, typename _Tp, std::size_t _Nm>
+@@ -286,8 +286,8 @@
+     get(const array<_Tp, _Nm>& __arr) noexcept
+     {
+       static_assert(_Int < _Nm, "index is out of bounds");
+-      return _GLIBCXX_STD_C::__array_traits<_Tp, _Nm>::
+-	_S_ref(__arr._M_elems, _Int);
++      return *_GLIBCXX_STD_C::__array_traits<_Tp, _Nm>::
++	_S_ptr(__arr._M_elems, _Int);
+     }
+ } // namespace __debug
+ 
+diff -urN ./include/ext/new_allocator.h ../google/libstdc++-v3/include/ext/new_allocator.h
+--- ./include/ext/new_allocator.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/ext/new_allocator.h	2015-11-30 10:46:40.764488665 +0300
+@@ -104,10 +104,17 @@
+ 	return static_cast<_Tp*>(::operator new(__n * sizeof(_Tp)));
+       }
+ 
++#ifdef __GXX_DELETE_WITH_SIZE__
++      // __p is not permitted to be a null pointer.
++      void
++      deallocate(pointer __p, size_type __t)
++      { ::operator delete(__p, __t * sizeof(_Tp)); }
++#else
+       // __p is not permitted to be a null pointer.
+       void
+       deallocate(pointer __p, size_type)
+       { ::operator delete(__p); }
++#endif
+ 
+       size_type
+       max_size() const _GLIBCXX_USE_NOEXCEPT
+diff -urN ./include/ext/sso_string_base.h ../google/libstdc++-v3/include/ext/sso_string_base.h
+--- ./include/ext/sso_string_base.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/ext/sso_string_base.h	2015-11-30 10:46:40.774488665 +0300
+@@ -85,6 +85,13 @@
+       {
+ 	if (!_M_is_local())
+ 	  _M_destroy(_M_allocated_capacity);
++#if __google_stl_debug_dangling_string
++	else {
++          // Wipe local storage for destructed string with 0xCD.
++          // This mimics what DebugAllocation does to free()d memory.
++          __builtin_memset(_M_local_data, 0xcd, sizeof(_M_local_data));
++        }
++#endif
+       }
+ 
+       void
+@@ -168,15 +175,29 @@
+       _M_leak() { }
+ 
+       void
+-      _M_set_length(size_type __n)
++      _M_set_length_no_wipe(size_type __n)
+       {
+ 	_M_length(__n);
+ 	traits_type::assign(_M_data()[__n], _CharT());
+       }
+ 
++      void
++      _M_set_length(size_type __n)
++      {
++#if __google_stl_debug_dangling_string
++	if (__n + 1 < _M_length())
++	  {
++	    // Wipe the storage with 0xCD.
++	    // Also wipes the old NUL terminator.
++	    __builtin_memset(_M_data() + __n + 1, 0xcd, _M_length() - __n);
++	  }
++#endif
++	  _M_set_length_no_wipe(__n);
++      }
++
+       __sso_string_base()
+       : _M_dataplus(_M_local_data)
+-      { _M_set_length(0); }
++      { _M_set_length_no_wipe(0); }
+ 
+       __sso_string_base(const _Alloc& __a);
+ 
+@@ -193,7 +214,12 @@
+ 			  const _Alloc& __a);
+ 
+       ~__sso_string_base()
+-      { _M_dispose(); }
++      {
++          _M_dispose();
++#ifdef __google_stl_debug_dangling_string
++          __builtin_memset(this, 0xcd, sizeof(*this));
++#endif
++      }
+ 
+       _CharT_alloc_type&
+       _M_get_allocator()
+@@ -335,7 +361,7 @@
+     __sso_string_base<_CharT, _Traits, _Alloc>::
+     __sso_string_base(const _Alloc& __a)
+     : _M_dataplus(__a, _M_local_data)
+-    { _M_set_length(0); }
++    { _M_set_length_no_wipe(0); }
+ 
+   template<typename _CharT, typename _Traits, typename _Alloc>
+     __sso_string_base<_CharT, _Traits, _Alloc>::
+@@ -361,9 +387,9 @@
+ 	  _M_capacity(__rcs._M_allocated_capacity);
+ 	}
+ 
+-      _M_set_length(__rcs._M_length());
++      _M_set_length_no_wipe(__rcs._M_length());
+       __rcs._M_data(__rcs._M_local_data);
+-      __rcs._M_set_length(0);
++      __rcs._M_set_length_no_wipe(0);
+     }
+ #endif
+ 
+@@ -425,7 +451,7 @@
+ 	    __throw_exception_again;
+ 	  }
+ 
+-	_M_set_length(__len);
++	_M_set_length_no_wipe(__len);
+       }
+ 
+   template<typename _CharT, typename _Traits, typename _Alloc>
+@@ -457,7 +483,7 @@
+ 	    __throw_exception_again;
+ 	  }
+ 
+-	_M_set_length(__dnew);
++	_M_set_length_no_wipe(__dnew);
+       }
+ 
+   template<typename _CharT, typename _Traits, typename _Alloc>
+@@ -474,7 +500,7 @@
+       if (__n)
+ 	this->_S_assign(_M_data(), __n, __c);
+ 
+-      _M_set_length(__n);
++      _M_set_length_no_wipe(__n);
+     }
+ 
+   template<typename _CharT, typename _Traits, typename _Alloc>
+diff -urN ./include/ext/vstring.h ../google/libstdc++-v3/include/ext/vstring.h
+--- ./include/ext/vstring.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/ext/vstring.h	2015-11-30 10:46:40.774488665 +0300
+@@ -39,6 +39,21 @@
+ #include <ext/rc_string_base.h>
+ #include <ext/sso_string_base.h>
+ 
++#if __google_stl_debug_string && !defined(_GLIBCXX_DEBUG)
++# undef _GLIBCXX_DEBUG_ASSERT
++# undef _GLIBCXX_DEBUG_PEDASSERT
++// Perform additional checks (but only in this file).
++# define _GLIBCXX_DEBUG_ASSERT(_Condition)                             \
++  if (! (_Condition)) {                                                \
++    char buf[512];                                                     \
++    __builtin_snprintf(buf, sizeof(buf),                               \
++                      "%s:%d: %s: Assertion '%s' failed.\n",           \
++                      __FILE__, __LINE__, __func__, # _Condition);     \
++    std::__throw_runtime_error(buf);                                   \
++  }
++# define _GLIBCXX_DEBUG_PEDASSERT(_Condition) _GLIBCXX_DEBUG_ASSERT(_Condition)
++#endif
++
+ namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
+ {
+ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -536,7 +551,15 @@
+       const_reference
+       operator[] (size_type __pos) const _GLIBCXX_NOEXCEPT
+       {
++#if __google_stl_debug_string && !defined(_GLIBCXX_DEBUG)
++	if (__pos > this->size())
++	  std::__throw_out_of_range_fmt(__N("__versa_string::operator[]: __pos "
++					    "(which is %zu) > this->size() "
++					    "(which is %zu)"),
++					__pos, this->size());
++#else
+ 	_GLIBCXX_DEBUG_ASSERT(__pos <= this->size());
++#endif
+ 	return this->_M_data()[__pos];
+       }
+ 
+@@ -555,7 +578,15 @@
+       {
+         // Allow pos == size() both in C++98 mode, as v3 extension,
+ 	// and in C++11 mode.
++#if __google_stl_debug_string && !defined(_GLIBCXX_DEBUG)
++	if (__pos > this->size())
++	  std::__throw_out_of_range_fmt(__N("__versa_string::operator[]: __pos "
++					    "(which is %zu) > this->size() "
++					    "(which is %zu)"),
++					__pos, this->size());
++#else
+ 	_GLIBCXX_DEBUG_ASSERT(__pos <= this->size());
++#endif
+         // In pedantic mode be strict in C++98 mode.
+ 	_GLIBCXX_DEBUG_PEDASSERT(__cplusplus >= 201103L
+ 				 || __pos < this->size());
+@@ -2960,4 +2991,12 @@
+ 
+ #include "vstring.tcc" 
+ 
++#if __google_stl_debug_string && !defined(_GLIBCXX_DEBUG)
++// Undo our defines, so they don't affect anything else.
++# undef _GLIBCXX_DEBUG_ASSERT
++# undef _GLIBCXX_DEBUG_PEDASSERT
++# define _GLIBCXX_DEBUG_ASSERT(_Condition)
++# define _GLIBCXX_DEBUG_PEDASSERT(_Condition)
++#endif
++
+ #endif /* _VSTRING_H */
+diff -urN ./include/Makefile.am ../google/libstdc++-v3/include/Makefile.am
+--- ./include/Makefile.am	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/Makefile.am	2015-11-30 10:46:40.744488666 +0300
+@@ -948,6 +948,7 @@
+ 
+ stamp-bits-sup: stamp-bits ${bits_sup_headers}
+ 	@-cd ${bits_builddir} && $(LN_S) $? . 2>/dev/null
++	@-cd ${bits_builddir} && rm -f stamp-bits && $(STAMP) stamp-bits
+ 	@$(STAMP) stamp-bits-sup
+ 
+ stamp-c_base: ${c_base_headers}
+diff -urN ./include/Makefile.in ../google/libstdc++-v3/include/Makefile.in
+--- ./include/Makefile.in	2013-11-16 21:44:48.000000000 +0400
++++ ../google/libstdc++-v3/include/Makefile.in	2015-11-30 10:46:40.744488666 +0300
+@@ -1367,6 +1367,7 @@
+ 
+ stamp-bits-sup: stamp-bits ${bits_sup_headers}
+ 	@-cd ${bits_builddir} && $(LN_S) $? . 2>/dev/null
++	@-cd ${bits_builddir} && rm -f stamp-bits && $(STAMP) stamp-bits
+ 	@$(STAMP) stamp-bits-sup
+ 
+ stamp-c_base: ${c_base_headers}
+diff -urN ./include/parallel/algo.h ../google/libstdc++-v3/include/parallel/algo.h
+--- ./include/parallel/algo.h	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/parallel/algo.h	2015-11-30 10:46:40.774488665 +0300
+@@ -81,9 +81,8 @@
+   template<typename _RAIter, typename _Function>
+     _Function
+     __for_each_switch(_RAIter __begin, _RAIter __end, 
+-                    _Function __f, random_access_iterator_tag, 
+-                    __gnu_parallel::_Parallelism __parallelism_tag
+-                    = __gnu_parallel::parallel_balanced)
++                    _Function __f, random_access_iterator_tag,
++                    __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       if (_GLIBCXX_PARALLEL_CONDITION(
+             static_cast<__gnu_parallel::_SequenceIndex>(__end - __begin)
+@@ -896,8 +895,7 @@
+     typename iterator_traits<_RAIter>::difference_type
+     __count_switch(_RAIter __begin, _RAIter __end, 
+                  const _Tp& __value, random_access_iterator_tag, 
+-                 __gnu_parallel::_Parallelism __parallelism_tag 
+-                 = __gnu_parallel::parallel_unbalanced)
++                 __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       typedef iterator_traits<_RAIter> _TraitsType;
+       typedef typename _TraitsType::value_type _ValueType;
+@@ -966,8 +964,7 @@
+     typename iterator_traits<_RAIter>::difference_type
+     __count_if_switch(_RAIter __begin, _RAIter __end, 
+                     _Predicate __pred, random_access_iterator_tag,
+-                    __gnu_parallel::_Parallelism __parallelism_tag
+-                    = __gnu_parallel::parallel_unbalanced)
++                    __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       typedef iterator_traits<_RAIter> _TraitsType;
+       typedef typename _TraitsType::value_type _ValueType;
+@@ -1225,8 +1222,7 @@
+     __transform1_switch(_RAIter1 __begin, _RAIter1 __end,
+                       _RAIter2 __result, _UnaryOperation __unary_op,
+                       random_access_iterator_tag, random_access_iterator_tag,
+-                      __gnu_parallel::_Parallelism __parallelism_tag
+-                      = __gnu_parallel::parallel_balanced)
++                      __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       if (_GLIBCXX_PARALLEL_CONDITION(
+             static_cast<__gnu_parallel::_SequenceIndex>(__end - __begin)
+@@ -1315,8 +1311,7 @@
+                       _RAIter3 __result, _BinaryOperation __binary_op,
+                       random_access_iterator_tag, random_access_iterator_tag,
+                       random_access_iterator_tag,
+-                      __gnu_parallel::_Parallelism __parallelism_tag 
+-                      = __gnu_parallel::parallel_balanced)
++                      __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       if (_GLIBCXX_PARALLEL_CONDITION(
+             (__end1 - __begin1) >=
+@@ -1422,8 +1417,7 @@
+     __replace_switch(_RAIter __begin, _RAIter __end, 
+                    const _Tp& __old_value, const _Tp& __new_value, 
+                    random_access_iterator_tag, 
+-                   __gnu_parallel::_Parallelism __parallelism_tag
+-                   = __gnu_parallel::parallel_balanced)
++                   __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       // XXX parallel version is where?
+       replace(__begin, __end, __old_value, __new_value, 
+@@ -1478,8 +1472,7 @@
+     __replace_if_switch(_RAIter __begin, _RAIter __end,
+                       _Predicate __pred, const _Tp& __new_value,
+                       random_access_iterator_tag,
+-                      __gnu_parallel::_Parallelism __parallelism_tag
+-                      = __gnu_parallel::parallel_balanced)
++                      __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       if (_GLIBCXX_PARALLEL_CONDITION(
+             static_cast<__gnu_parallel::_SequenceIndex>(__end - __begin)
+@@ -1544,8 +1537,7 @@
+     void
+     __generate_switch(_RAIter __begin, _RAIter __end,
+                     _Generator __gen, random_access_iterator_tag, 
+-                    __gnu_parallel::_Parallelism __parallelism_tag
+-                    = __gnu_parallel::parallel_balanced)
++                    __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       if (_GLIBCXX_PARALLEL_CONDITION(
+             static_cast<__gnu_parallel::_SequenceIndex>(__end - __begin)
+@@ -1608,8 +1600,7 @@
+     inline _RAIter
+     __generate_n_switch(_RAIter __begin, _Size __n, _Generator __gen, 
+                       random_access_iterator_tag, 
+-                      __gnu_parallel::_Parallelism __parallelism_tag
+-                      = __gnu_parallel::parallel_balanced)
++                      __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       // XXX parallel version is where?
+       return generate_n(__begin, __n, __gen, __gnu_parallel::sequential_tag());
+@@ -2204,8 +2195,7 @@
+     _RAIter
+     __max_element_switch(_RAIter __begin, _RAIter __end, 
+                        _Compare __comp, random_access_iterator_tag, 
+-                       __gnu_parallel::_Parallelism __parallelism_tag
+-                       = __gnu_parallel::parallel_balanced)
++			 __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       if (_GLIBCXX_PARALLEL_CONDITION(
+             static_cast<__gnu_parallel::_SequenceIndex>(__end - __begin)
+@@ -2296,8 +2286,7 @@
+     _RAIter
+     __min_element_switch(_RAIter __begin, _RAIter __end, 
+                        _Compare __comp, random_access_iterator_tag, 
+-                       __gnu_parallel::_Parallelism __parallelism_tag
+-                       = __gnu_parallel::parallel_balanced)
++                       __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       if (_GLIBCXX_PARALLEL_CONDITION(
+             static_cast<__gnu_parallel::_SequenceIndex>(__end - __begin)
+diff -urN ./include/parallel/numeric ../google/libstdc++-v3/include/parallel/numeric
+--- ./include/parallel/numeric	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/parallel/numeric	2015-11-30 10:46:40.774488665 +0300
+@@ -85,8 +85,7 @@
+     __accumulate_switch(__RAIter __begin, __RAIter __end, 
+                       _Tp __init, _BinaryOperation __binary_op, 
+                       random_access_iterator_tag, 
+-                      __gnu_parallel::_Parallelism __parallelism_tag  
+-                      = __gnu_parallel::parallel_unbalanced)
++                      __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       if (_GLIBCXX_PARALLEL_CONDITION(
+             static_cast<__gnu_parallel::_SequenceIndex>(__end - __begin)
+@@ -193,8 +192,7 @@
+ 			   _BinaryFunction2 __binary_op2,
+ 			   random_access_iterator_tag,
+ 			   random_access_iterator_tag,
+-			   __gnu_parallel::_Parallelism __parallelism_tag
+-			   = __gnu_parallel::parallel_unbalanced)
++			   __gnu_parallel::_Parallelism __parallelism_tag)
+     {
+       if (_GLIBCXX_PARALLEL_CONDITION((__last1 - __first1)
+                                       >= __gnu_parallel::_Settings::get().
+@@ -419,8 +417,7 @@
+ 				 random_access_iterator_tag,
+ 				 random_access_iterator_tag,
+ 				 __gnu_parallel::_Parallelism
+-				 __parallelism_tag
+-				 = __gnu_parallel::parallel_balanced)
++				 __parallelism_tag)
+     {
+       if (_GLIBCXX_PARALLEL_CONDITION(
+             static_cast<__gnu_parallel::_SequenceIndex>(__end - __begin)
+diff -urN ./include/std/array ../google/libstdc++-v3/include/std/array
+--- ./include/std/array	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/std/array	2015-11-30 10:46:40.774488665 +0300
+@@ -48,9 +48,9 @@
+     {
+       typedef _Tp _Type[_Nm];
+ 
+-      static constexpr _Tp&
+-      _S_ref(const _Type& __t, std::size_t __n) noexcept
+-      { return const_cast<_Tp&>(__t[__n]); }
++      static constexpr _Tp*
++      _S_ptr(const _Type& __t, std::size_t __n) noexcept
++      { return const_cast<_Tp*>(std::__addressof(__t[__n])); }
+     };
+ 
+  template<typename _Tp>
+@@ -58,9 +58,9 @@
+    {
+      struct _Type { };
+ 
+-     static constexpr _Tp&
+-     _S_ref(const _Type&, std::size_t) noexcept
+-     { return *static_cast<_Tp*>(nullptr); }
++     static constexpr _Tp*
++     _S_ptr(const _Type&, std::size_t) noexcept
++     { return static_cast<_Tp*>(nullptr); }
+    };
+ 
+   /**
+@@ -170,11 +170,11 @@
+       // Element access.
+       reference
+       operator[](size_type __n) noexcept
+-      { return _AT_Type::_S_ref(_M_elems, __n); }
++      { return *_AT_Type::_S_ptr(_M_elems, __n); }
+ 
+       constexpr const_reference
+       operator[](size_type __n) const noexcept
+-      { return _AT_Type::_S_ref(_M_elems, __n); }
++      { return *_AT_Type::_S_ptr(_M_elems, __n); }
+ 
+       reference
+       at(size_type __n)
+@@ -183,7 +183,7 @@
+ 	  std::__throw_out_of_range_fmt(__N("array::at: __n (which is %zu) "
+ 					    ">= _Nm (which is %zu)"),
+ 					__n, _Nm);
+-	return _AT_Type::_S_ref(_M_elems, __n);
++	return *_AT_Type::_S_ptr(_M_elems, __n);
+       }
+ 
+       constexpr const_reference
+@@ -191,11 +191,11 @@
+       {
+ 	// Result of conditional expression must be an lvalue so use
+ 	// boolean ? lvalue : (throw-expr, lvalue)
+-	return __n < _Nm ? _AT_Type::_S_ref(_M_elems, __n)
++	return __n < _Nm ? *_AT_Type::_S_ptr(_M_elems, __n)
+ 	  : (std::__throw_out_of_range_fmt(__N("array::at: __n (which is %zu) "
+ 					       ">= _Nm (which is %zu)"),
+ 					   __n, _Nm),
+-	     _AT_Type::_S_ref(_M_elems, 0));
++	     *_AT_Type::_S_ptr(_M_elems, 0));
+       }
+ 
+       reference 
+@@ -204,7 +204,7 @@
+ 
+       constexpr const_reference 
+       front() const noexcept
+-      { return _AT_Type::_S_ref(_M_elems, 0); }
++      { return *_AT_Type::_S_ptr(_M_elems, 0); }
+ 
+       reference 
+       back() noexcept
+@@ -213,17 +213,17 @@
+       constexpr const_reference 
+       back() const noexcept
+       { 
+-	return _Nm ? _AT_Type::_S_ref(_M_elems, _Nm - 1) 
+- 	           : _AT_Type::_S_ref(_M_elems, 0);
++	return _Nm ? *_AT_Type::_S_ptr(_M_elems, _Nm - 1) 
++ 	           : *_AT_Type::_S_ptr(_M_elems, 0);
+       }
+ 
+       pointer
+       data() noexcept
+-      { return std::__addressof(_AT_Type::_S_ref(_M_elems, 0)); }
++      { return _AT_Type::_S_ptr(_M_elems, 0); }
+ 
+       const_pointer
+       data() const noexcept
+-      { return std::__addressof(_AT_Type::_S_ref(_M_elems, 0)); }
++      { return _AT_Type::_S_ptr(_M_elems, 0); }
+     };
+ 
+   // Array comparisons.
+@@ -272,8 +272,8 @@
+     get(array<_Tp, _Nm>& __arr) noexcept
+     {
+       static_assert(_Int < _Nm, "index is out of bounds");
+-      return _GLIBCXX_STD_C::__array_traits<_Tp, _Nm>::
+-	_S_ref(__arr._M_elems, _Int);
++      return *_GLIBCXX_STD_C::__array_traits<_Tp, _Nm>::
++	_S_ptr(__arr._M_elems, _Int);
+     }
+ 
+   template<std::size_t _Int, typename _Tp, std::size_t _Nm>
+@@ -289,8 +289,8 @@
+     get(const array<_Tp, _Nm>& __arr) noexcept
+     {
+       static_assert(_Int < _Nm, "index is out of bounds");
+-      return _GLIBCXX_STD_C::__array_traits<_Tp, _Nm>::
+-	_S_ref(__arr._M_elems, _Int);
++      return *_GLIBCXX_STD_C::__array_traits<_Tp, _Nm>::
++	_S_ptr(__arr._M_elems, _Int);
+     }
+ 
+ _GLIBCXX_END_NAMESPACE_CONTAINER
+diff -urN ./include/std/atomic ../google/libstdc++-v3/include/std/atomic
+--- ./include/std/atomic	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/std/atomic	2015-11-30 10:46:40.774488665 +0300
+@@ -161,7 +161,15 @@
+     struct atomic
+     {
+     private:
+-      _Tp _M_i;
++      // Align 1/2/4/8/16-byte types to at least their size.
++      static constexpr int _S_min_alignment
++	= (sizeof(_Tp) & (sizeof(_Tp) - 1)) || sizeof(_Tp) > 16
++	? 0 : sizeof(_Tp);
++
++      static constexpr int _S_alignment
++        = _S_min_alignment > alignof(_Tp) ? _S_min_alignment : alignof(_Tp);
++
++      alignas(_S_alignment) _Tp _M_i;
+ 
+     public:
+       atomic() noexcept = default;
+diff -urN ./include/std/complex ../google/libstdc++-v3/include/std/complex
+--- ./include/std/complex	2014-10-08 15:05:43.000000000 +0400
++++ ../google/libstdc++-v3/include/std/complex	2015-11-30 10:46:40.774488665 +0300
+@@ -44,8 +44,14 @@
+ #include <cmath>
+ #include <sstream>
+ 
+-// Get rid of a macro possibly defined in <complex.h>
+-#undef complex
++// The C++ <complex> header is incompatible with the C99 <complex.h> header,
++// they cannot be included into a single translation unit portably. Notably,
++// C++11's <ccomplex> does not include C99's <complex.h> and in C++11's
++// <complex.h> is defined to provide only what C++11's <ccomplex> does in a
++// different namespace.
++#ifdef _GLIBCXX_C99_COMPLEX_H
++#error Cannot include both <complex> and C99's <complex.h>
++#endif
+ 
+ namespace std _GLIBCXX_VISIBILITY(default)
+ {
+diff -urN ./include/std/functional ../google/libstdc++-v3/include/std/functional
+--- ./include/std/functional	2014-05-06 15:45:14.000000000 +0400
++++ ../google/libstdc++-v3/include/std/functional	2015-11-30 10:46:40.774488665 +0300
+@@ -2407,9 +2407,9 @@
+     {
+       if (static_cast<bool>(__x))
+ 	{
++	  __x._M_manager(_M_functor, __x._M_functor, __clone_functor);
+ 	  _M_invoker = __x._M_invoker;
+ 	  _M_manager = __x._M_manager;
+-	  __x._M_manager(_M_functor, __x._M_functor, __clone_functor);
+ 	}
+     }
+ 
+diff -urN ./include/std/future ../google/libstdc++-v3/include/std/future
+--- ./include/std/future	2014-08-04 22:50:20.000000000 +0400
++++ ../google/libstdc++-v3/include/std/future	2015-11-30 10:46:40.774488665 +0300
+@@ -1450,7 +1450,8 @@
+       operator()(_ArgTypes... __args)
+       {
+ 	__future_base::_State_base::_S_check(_M_state);
+-	_M_state->_M_run(std::forward<_ArgTypes>(__args)...);
++	auto __state = _M_state;
++	__state->_M_run(std::forward<_ArgTypes>(__args)...);
+       }
+ 
+       void
+diff -urN ./include/std/shared_mutex ../google/libstdc++-v3/include/std/shared_mutex
+--- ./include/std/shared_mutex	2014-10-08 15:05:43.000000000 +0400
++++ ../google/libstdc++-v3/include/std/shared_mutex	2015-11-30 10:46:40.784488665 +0300
+@@ -36,10 +36,8 @@
+ #else
+ 
+ #include <bits/c++config.h>
+-#if defined(_GLIBCXX_HAS_GTHREADS) && defined(_GLIBCXX_USE_C99_STDINT_TR1)
+-# include <mutex>
+-# include <condition_variable>
+-#endif
++#include <mutex>
++#include <condition_variable>
+ #include <bits/functexcept.h>
+ 
+ namespace std _GLIBCXX_VISIBILITY(default)
+@@ -51,7 +49,8 @@
+    * @{
+    */
+ 
+-#if defined(_GLIBCXX_HAS_GTHREADS) && defined(_GLIBCXX_USE_C99_STDINT_TR1)
++#ifdef _GLIBCXX_USE_C99_STDINT_TR1
++#ifdef _GLIBCXX_HAS_GTHREADS
+ 
+ #define __cpp_lib_shared_timed_mutex 201402
+ 
+@@ -254,7 +253,7 @@
+ 	}
+     }
+   };
+-#endif // _GLIBCXX_HAS_GTHREADS && _GLIBCXX_USE_C99_STDINT_TR1
++#endif // _GLIBCXX_HAS_GTHREADS
+ 
+   /// shared_lock
+   template<typename _Mutex>
+@@ -393,6 +392,8 @@
+     swap(shared_lock<_Mutex>& __x, shared_lock<_Mutex>& __y) noexcept
+     { __x.swap(__y); }
+ 
++#endif // _GLIBCXX_USE_C99_STDINT_TR1
++
+   // @} group mutexes
+ _GLIBCXX_END_NAMESPACE_VERSION
+ } // namespace
+diff -urN ./include/std/tuple ../google/libstdc++-v3/include/std/tuple
+--- ./include/std/tuple	2014-10-08 15:05:43.000000000 +0400
++++ ../google/libstdc++-v3/include/std/tuple	2015-11-30 10:46:40.784488665 +0300
+@@ -88,21 +88,22 @@
+       constexpr _Head_base(const _Head& __h)
+       : _Head(__h) { }
+ 
+-      template<typename _UHead, typename = typename
+-	       enable_if<!is_convertible<_UHead,
+-	                                 __uses_alloc_base>::value>::type>
++      constexpr _Head_base(const _Head_base&) = default;
++      constexpr _Head_base(_Head_base&&) = default;
++
++      template<typename _UHead>
+         constexpr _Head_base(_UHead&& __h)
+ 	: _Head(std::forward<_UHead>(__h)) { }
+ 
+-      _Head_base(__uses_alloc0)
++      _Head_base(allocator_arg_t, __uses_alloc0)
+       : _Head() { }
+ 
+       template<typename _Alloc>
+-	_Head_base(__uses_alloc1<_Alloc> __a)
++	_Head_base(allocator_arg_t, __uses_alloc1<_Alloc> __a)
+ 	: _Head(allocator_arg, *__a._M_a) { }
+ 
+       template<typename _Alloc>
+-	_Head_base(__uses_alloc2<_Alloc> __a)
++	_Head_base(allocator_arg_t, __uses_alloc2<_Alloc> __a)
+ 	: _Head(*__a._M_a) { }
+ 
+       template<typename _UHead>
+@@ -133,21 +134,22 @@
+       constexpr _Head_base(const _Head& __h)
+       : _M_head_impl(__h) { }
+ 
+-      template<typename _UHead, typename = typename
+-	       enable_if<!is_convertible<_UHead,
+-	                                 __uses_alloc_base>::value>::type>
++      constexpr _Head_base(const _Head_base&) = default;
++      constexpr _Head_base(_Head_base&&) = default;
++
++      template<typename _UHead>
+         constexpr _Head_base(_UHead&& __h)
+ 	: _M_head_impl(std::forward<_UHead>(__h)) { }
+ 
+-      _Head_base(__uses_alloc0)
++      _Head_base(allocator_arg_t, __uses_alloc0)
+       : _M_head_impl() { }
+ 
+       template<typename _Alloc>
+-	_Head_base(__uses_alloc1<_Alloc> __a)
++	_Head_base(allocator_arg_t, __uses_alloc1<_Alloc> __a)
+ 	: _M_head_impl(allocator_arg, *__a._M_a) { }
+ 
+       template<typename _Alloc>
+-	_Head_base(__uses_alloc2<_Alloc> __a)
++	_Head_base(allocator_arg_t, __uses_alloc2<_Alloc> __a)
+ 	: _M_head_impl(*__a._M_a) { }
+ 
+       template<typename _UHead>
+@@ -285,7 +287,7 @@
+       template<typename _Alloc>
+ 	_Tuple_impl(allocator_arg_t __tag, const _Alloc& __a)
+ 	: _Inherited(__tag, __a),
+-          _Base(__use_alloc<_Head>(__a)) { }
++          _Base(__tag, __use_alloc<_Head>(__a)) { }
+ 
+       template<typename _Alloc>
+ 	_Tuple_impl(allocator_arg_t __tag, const _Alloc& __a,
+diff -urN ./include/std/type_traits ../google/libstdc++-v3/include/std/type_traits
+--- ./include/std/type_traits	2014-10-08 15:05:43.000000000 +0400
++++ ../google/libstdc++-v3/include/std/type_traits	2015-11-30 10:46:40.784488665 +0300
+@@ -274,7 +274,7 @@
+     struct __is_floating_point_helper<long double>
+     : public true_type { };
+ 
+-#if !defined(__STRICT_ANSI__) && defined(_GLIBCXX_USE_FLOAT128)
++#if !defined(__STRICT_ANSI__) && defined(_GLIBCXX_USE_FLOAT128) && (!defined (__ANDROID__) || !defined(__clang__) || __clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 4))
+   template<>
+     struct __is_floating_point_helper<__float128>
+     : public true_type { };
+@@ -1988,7 +1988,11 @@
+     struct __common_type_impl
+     : private __do_common_type_impl
+     {
++#if !defined (__ANDROID__)
+       typedef decltype(_S_test<_Tp, _Up>(0)) type;
++#else
++      typedef typename decay<decltype(_S_test<_Tp, _Up>(0))>::type type;
++#endif
+     };
+ 
+   struct __do_member_type_wrapper
+diff -urN ./include/tr1/functional ../google/libstdc++-v3/include/tr1/functional
+--- ./include/tr1/functional	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/include/tr1/functional	2015-11-30 10:46:40.784488665 +0300
+@@ -2112,9 +2112,9 @@
+     {
+       if (static_cast<bool>(__x))
+ 	{
++	  __x._M_manager(_M_functor, __x._M_functor, __clone_functor);
+ 	  _M_invoker = __x._M_invoker;
+ 	  _M_manager = __x._M_manager;
+-	  __x._M_manager(_M_functor, __x._M_functor, __clone_functor);
+ 	}
+     }
+ 
+@@ -2130,9 +2130,9 @@
+ 
+ 	if (_My_handler::_M_not_empty_function(__f))
+ 	  {
++	    _My_handler::_M_init_functor(_M_functor, __f);
+ 	    _M_invoker = &_My_handler::_M_invoke;
+ 	    _M_manager = &_My_handler::_M_manager;
+-	    _My_handler::_M_init_functor(_M_functor, __f);
+ 	  }
+       }
+ 
+diff -urN ./libsupc++/del_opsz.cc ../google/libstdc++-v3/libsupc++/del_opsz.cc
+--- ./libsupc++/del_opsz.cc	1970-01-01 03:00:00.000000000 +0300
++++ ../google/libstdc++-v3/libsupc++/del_opsz.cc	2015-11-30 10:46:40.784488665 +0300
+@@ -0,0 +1,50 @@
++// Boilerplate support routines for -*- C++ -*- dynamic memory management.
++
++// Copyright (C) 2012
++// Free Software Foundation
++//
++// This file is part of GCC.
++//
++// GCC is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 3, or (at your option)
++// any later version.
++//
++// GCC is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++//
++// Under Section 7 of GPL version 3, you are granted additional
++// permissions described in the GCC Runtime Library Exception, version
++// 3.1, as published by the Free Software Foundation.
++
++// You should have received a copy of the GNU General Public License and
++// a copy of the GCC Runtime Library Exception along with this program;
++// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++// <http://www.gnu.org/licenses/>.
++
++#include <bits/c++config.h>
++
++#if !_GLIBCXX_HOSTED
++// A freestanding C runtime may not provide "free" -- but there is no
++// other reasonable way to implement "operator delete".
++namespace std
++{
++_GLIBCXX_BEGIN_NAMESPACE_VERSION
++  extern "C" void free(void*);
++_GLIBCXX_END_NAMESPACE_VERSION
++} // namespace
++#else
++# include <cstdlib>
++#endif
++
++#include "new"
++
++_GLIBCXX_WEAK_DEFINITION void
++operator delete(void* ptr,
++                std::size_t bytes __attribute__((__unused__))) throw ()
++{
++  if (ptr)
++    std::free(ptr);
++}
+diff -urN ./libsupc++/eh_arm.cc ../google/libstdc++-v3/libsupc++/eh_arm.cc
+--- ./libsupc++/eh_arm.cc	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/libsupc++/eh_arm.cc	2015-11-30 10:46:40.784488665 +0300
+@@ -29,6 +29,18 @@
+ 
+ using namespace __cxxabiv1;
+ 
++#if defined (__ANDROID__)
++// The GCC command-line option "-fvisibility=hidden" apparently fails to hide
++// the visibility of the inline assembly function "__cxa_end_cleanup".
++// We need to keep the visibility of the __cxa_* functions coherent otherwise
++// linking eh_arm.o to resolve __cxa_end_cleanup (eg needed by -frtti
++// -fexceptions) will disappoint the linker by exposing __cxa_type_match and
++// __cxa_begin_cleanup (eg needed by __aeabi_idiv from libgcc.a).
++// Therefore as a simple workaround we just force the visibility to default for
++// all these __cxa functions in this module.
++
++#pragma GCC visibility push(default)
++#endif
+ 
+ // Given the thrown type THROW_TYPE, exception object UE_HEADER and a
+ // type CATCH_TYPE to compare against, return whether or not there is
+@@ -224,4 +236,8 @@
+ #endif
+ #endif
+ 
++#if defined (__ANDROID__)
++#pragma GCC visibility pop
++#endif
++
+ #endif
+diff -urN ./libsupc++/eh_globals.cc ../google/libstdc++-v3/libsupc++/eh_globals.cc
+--- ./libsupc++/eh_globals.cc	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/libsupc++/eh_globals.cc	2015-11-30 10:46:40.784488665 +0300
+@@ -93,13 +93,21 @@
+   bool 			_M_init;
+ 
+   __eh_globals_init() : _M_init(false)
+-  { 
++  {
+     if (__gthread_active_p())
+-      _M_init = __gthread_key_create(&_M_key, eh_globals_dtor) == 0; 
++      _M_init = __gthread_key_create(&_M_key, eh_globals_dtor) == 0;
+   }
+ 
+   ~__eh_globals_init()
+   {
++    /* Work-around for an Android-specific bug, where this destructor
++     * is called with a NULL object pointer. This is due to a bug in the
++     * __cxa_finalize() implementation that was only fixed in 2.2.
++     */
++#ifdef __ANDROID__
++    if (this == NULL)
++        return;
++#endif
+     if (_M_init)
+       __gthread_key_delete(_M_key);
+     _M_init = false;
+diff -urN ./libsupc++/eh_personality.cc ../google/libstdc++-v3/libsupc++/eh_personality.cc
+--- ./libsupc++/eh_personality.cc	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/libsupc++/eh_personality.cc	2015-11-30 10:46:40.784488665 +0300
+@@ -378,6 +378,12 @@
+   switch (state & _US_ACTION_MASK)
+     {
+     case _US_VIRTUAL_UNWIND_FRAME:
++      // If the unwind state pattern is
++      // _US_VIRTUAL_UNWIND_FRAME | _US_FORCE_UNWIND
++      // then we don't need to search for any handler as it is not a real
++      // exception. Just unwind the stack.
++      if (state & _US_FORCE_UNWIND)
++	CONTINUE_UNWINDING;
+       actions = _UA_SEARCH_PHASE;
+       break;
+ 
+diff -urN ./libsupc++/guard.cc ../google/libstdc++-v3/libsupc++/guard.cc
+--- ./libsupc++/guard.cc	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/libsupc++/guard.cc	2015-11-30 10:46:40.784488665 +0300
+@@ -33,7 +33,12 @@
+ #if defined(__GTHREADS) && defined(__GTHREAD_HAS_COND) \
+   && (ATOMIC_INT_LOCK_FREE > 1) && defined(_GLIBCXX_HAVE_LINUX_FUTEX)
+ # include <climits>
++#if defined(__ANDROID__)
++# include <sys/syscall.h>
++# define SYS_futex __NR_futex
++#else
+ # include <syscall.h>
++#endif
+ # include <unistd.h>
+ # define _GLIBCXX_USE_FUTEX
+ # define _GLIBCXX_FUTEX_WAIT 0
+@@ -135,6 +140,26 @@
+ 
+ #endif /* __GTHREADS */
+ 
++
++extern "C" void __google_potentially_blocking_region_begin(void)
++  __attribute__((weak));
++extern "C" void __google_potentially_blocking_region_end(void)
++  __attribute__((weak));
++
++struct google_potentially_blocking_region
++{
++  google_potentially_blocking_region()
++  {
++    if (&__google_potentially_blocking_region_begin != 0)
++      __google_potentially_blocking_region_begin();
++  }
++  ~google_potentially_blocking_region()
++  {
++    if (&__google_potentially_blocking_region_end != 0)
++      __google_potentially_blocking_region_end();
++  }
++};
++
+ //
+ // Here are C++ run-time routines for guarded initialization of static
+ // variables. There are 4 scenarios under which these routines are called:
+@@ -230,6 +255,8 @@
+   extern "C"
+   int __cxa_guard_acquire (__guard *g) 
+   {
++    google_potentially_blocking_region gpbr;  // RAII
++
+ #ifdef __GTHREADS
+     // If the target can reorder loads, we need to insert a read memory
+     // barrier so that accesses to the guarded variable happen after the
+diff -urN ./libsupc++/Makefile.am ../google/libstdc++-v3/libsupc++/Makefile.am
+--- ./libsupc++/Makefile.am	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/libsupc++/Makefile.am	2015-11-30 10:46:40.784488665 +0300
+@@ -55,6 +55,7 @@
+ 	bad_typeid.cc \
+ 	class_type_info.cc \
+ 	del_op.cc \
++	del_opsz.cc \
+ 	del_opnt.cc \
+ 	del_opv.cc \
+ 	del_opvnt.cc \
+@@ -183,7 +184,8 @@
+ AM_CXXFLAGS = \
+ 	$(glibcxx_lt_pic_flag) $(glibcxx_compiler_shared_flag) \
+ 	$(XTEMPLATE_FLAGS) \
+-	$(WARN_CXXFLAGS) $(OPTIMIZE_CXXFLAGS)  $(CONFIG_CXXFLAGS)
++	$(WARN_CXXFLAGS) $(OPTIMIZE_CXXFLAGS)  $(CONFIG_CXXFLAGS) \
++	$($(@)_no_omit_frame_pointer)
+ 
+ AM_MAKEFLAGS = \
+ 	"gxx_include_dir=$(gxx_include_dir)"
+@@ -289,7 +291,11 @@
+ 	  rm -f $(DESTDIR)$(bitsdir)/$$q; \
+ 	done
+ 
++# Google-specific pessimization
++eh_terminate.lo_no_omit_frame_pointer = -fno-omit-frame-pointer
++eh_throw.lo_no_omit_frame_pointer = -fno-omit-frame-pointer
++vterminate.lo_no_omit_frame_pointer = -fno-omit-frame-pointer
++
+ 
+ # By adding these files here, automake will remove them for 'make clean'
+ CLEANFILES = stamp-*
+-
+diff -urN ./libsupc++/Makefile.in ../google/libstdc++-v3/libsupc++/Makefile.in
+--- ./libsupc++/Makefile.in	2013-08-07 07:38:59.000000000 +0400
++++ ../google/libstdc++-v3/libsupc++/Makefile.in	2015-11-30 10:46:40.784488665 +0300
+@@ -93,7 +93,7 @@
+ libsupc___la_LIBADD =
+ am__objects_1 = array_type_info.lo atexit_arm.lo atexit_thread.lo \
+ 	bad_alloc.lo bad_array_length.lo bad_array_new.lo bad_cast.lo \
+-	bad_typeid.lo class_type_info.lo del_op.lo del_opnt.lo \
++	bad_typeid.lo class_type_info.lo del_op.lo del_opsz.lo del_opnt.lo \
+ 	del_opv.lo del_opvnt.lo dyncast.lo eh_alloc.lo eh_arm.lo \
+ 	eh_aux_runtime.lo eh_call.lo eh_catch.lo eh_exception.lo \
+ 	eh_globals.lo eh_personality.lo eh_ptr.lo eh_term_handler.lo \
+@@ -381,6 +381,7 @@
+ 	bad_typeid.cc \
+ 	class_type_info.cc \
+ 	del_op.cc \
++	del_opsz.cc \
+ 	del_opnt.cc \
+ 	del_opv.cc \
+ 	del_opvnt.cc \
+@@ -437,7 +438,8 @@
+ AM_CXXFLAGS = \
+ 	$(glibcxx_lt_pic_flag) $(glibcxx_compiler_shared_flag) \
+ 	$(XTEMPLATE_FLAGS) \
+-	$(WARN_CXXFLAGS) $(OPTIMIZE_CXXFLAGS)  $(CONFIG_CXXFLAGS)
++	$(WARN_CXXFLAGS) $(OPTIMIZE_CXXFLAGS)  $(CONFIG_CXXFLAGS) \
++	$($(@)_no_omit_frame_pointer)
+ 
+ AM_MAKEFLAGS = \
+ 	"gxx_include_dir=$(gxx_include_dir)"
+@@ -512,6 +514,11 @@
+ stddir = $(gxx_include_dir)
+ bitsdir = $(gxx_include_dir)/bits
+ 
++# Google-specific pessimization
++eh_terminate.lo_no_omit_frame_pointer = -fno-omit-frame-pointer
++eh_throw.lo_no_omit_frame_pointer = -fno-omit-frame-pointer
++vterminate.lo_no_omit_frame_pointer = -fno-omit-frame-pointer
++
+ # By adding these files here, automake will remove them for 'make clean'
+ CLEANFILES = stamp-*
+ all: all-am
+diff -urN ./libsupc++/new ../google/libstdc++-v3/libsupc++/new
+--- ./libsupc++/new	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/libsupc++/new	2015-11-30 10:46:40.784488665 +0300
+@@ -131,6 +131,8 @@
+   __attribute__((__externally_visible__));
+ void operator delete(void*) _GLIBCXX_USE_NOEXCEPT
+   __attribute__((__externally_visible__));
++void operator delete(void*, std::size_t) _GLIBCXX_USE_NOEXCEPT
++  __attribute__((__externally_visible__));
+ void operator delete[](void*) _GLIBCXX_USE_NOEXCEPT
+   __attribute__((__externally_visible__));
+ void* operator new(std::size_t, const std::nothrow_t&) _GLIBCXX_USE_NOEXCEPT
+diff -urN ./src/c++11/Makefile.am ../google/libstdc++-v3/src/c++11/Makefile.am
+--- ./src/c++11/Makefile.am	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/src/c++11/Makefile.am	2015-11-30 10:46:40.794488665 +0300
+@@ -77,7 +77,10 @@
+ 	-std=gnu++11 \
+ 	$(glibcxx_lt_pic_flag) $(glibcxx_compiler_shared_flag) \
+ 	$(XTEMPLATE_FLAGS) $(VTV_CXXFLAGS) \
+-	$(WARN_CXXFLAGS) $(OPTIMIZE_CXXFLAGS) $(CONFIG_CXXFLAGS)
++	$(WARN_CXXFLAGS) \
++	$(OPTIMIZE_CXXFLAGS) \
++	$(CONFIG_CXXFLAGS) -std=gnu++11 \
++	$($(@)_no_omit_frame_pointer)
+ 
+ AM_MAKEFLAGS = \
+ 	"gxx_include_dir=$(gxx_include_dir)"
+@@ -128,3 +131,7 @@
+ 	--mode=link $(CXX) \
+ 	$(VTV_CXXLINKFLAGS) \
+ 	$(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LTLDFLAGS) -o $@
++
++# Google-specific pessimization
++functexcept.lo_no_omit_frame_pointer = -fno-omit-frame-pointer
++debug.lo_no_omit_frame_pointer = -fno-omit-frame-pointer
+diff -urN ./src/c++11/Makefile.in ../google/libstdc++-v3/src/c++11/Makefile.in
+--- ./src/c++11/Makefile.in	2013-09-22 06:04:13.000000000 +0400
++++ ../google/libstdc++-v3/src/c++11/Makefile.in	2015-11-30 10:46:40.794488665 +0300
+@@ -349,7 +349,10 @@
+ 	-std=gnu++11 \
+ 	$(glibcxx_lt_pic_flag) $(glibcxx_compiler_shared_flag) \
+ 	$(XTEMPLATE_FLAGS) $(VTV_CXXFLAGS) \
+-	$(WARN_CXXFLAGS) $(OPTIMIZE_CXXFLAGS) $(CONFIG_CXXFLAGS)
++	$(WARN_CXXFLAGS) \
++	$(OPTIMIZE_CXXFLAGS) \
++	$(CONFIG_CXXFLAGS) -std=gnu++11 \
++	$($(@)_no_omit_frame_pointer)
+ 
+ AM_MAKEFLAGS = \
+ 	"gxx_include_dir=$(gxx_include_dir)"
+@@ -402,6 +405,10 @@
+ 	$(VTV_CXXLINKFLAGS) \
+ 	$(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LTLDFLAGS) -o $@
+ 
++
++# Google-specific pessimization
++functexcept.lo_no_omit_frame_pointer = -fno-omit-frame-pointer
++debug.lo_no_omit_frame_pointer = -fno-omit-frame-pointer
+ all: all-am
+ 
+ .SUFFIXES:
+diff -urN ./src/Makefile.am ../google/libstdc++-v3/src/Makefile.am
+--- ./src/Makefile.am	2014-01-03 02:30:10.000000000 +0400
++++ ../google/libstdc++-v3/src/Makefile.am	2015-11-30 10:46:40.794488665 +0300
+@@ -69,7 +69,7 @@
+ 	$(top_builddir)/src/c++11/libc++11convenience.la
+ 
+ libstdc___la_LDFLAGS = \
+-	-version-info $(libtool_VERSION) ${version_arg} -lm
++	${libtool_version_info_string} ${version_arg} -lm
+ 
+ libstdc___la_LINK = $(CXXLINK) $(libstdc___la_LDFLAGS)
+ 
+@@ -170,7 +170,8 @@
+ 	$(LIBTOOL) --tag CXX \
+ 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+ 	--mode=compile $(CXX) $(INCLUDES) \
+-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS)
++	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) \
++	$(EXTRA_CXX_FLAGS) -Xcompiler-static -UPIC
+ 
+ LTLDFLAGS = $(shell $(SHELL) $(top_srcdir)/../libtool-ldflags $(LDFLAGS))
+ 
+diff -urN ./src/Makefile.in ../google/libstdc++-v3/src/Makefile.in
+--- ./src/Makefile.in	2013-08-07 07:38:59.000000000 +0400
++++ ../google/libstdc++-v3/src/Makefile.in	2015-11-30 10:46:40.794488665 +0300
+@@ -286,6 +286,7 @@
+ libdir = @libdir@
+ libexecdir = @libexecdir@
+ libtool_VERSION = @libtool_VERSION@
++libtool_version_info_string = @libtool_version_info_string@
+ localedir = @localedir@
+ localstatedir = @localstatedir@
+ lt_host_flags = @lt_host_flags@
+@@ -342,7 +343,7 @@
+ SUBDIRS = c++98 c++11
+ 
+ # Cross compiler support.
+-toolexeclib_LTLIBRARIES = libstdc++.la
++toolexeclib_LTLIBRARIES = libgnustl_shared.la
+ @GLIBCXX_LDBL_COMPAT_FALSE@ldbl_compat_sources = 
+ @GLIBCXX_LDBL_COMPAT_TRUE@ldbl_compat_sources = compatibility-ldbl.cc
+ parallel_compat_sources = \
+@@ -375,7 +376,7 @@
+ 	$(top_builddir)/src/c++11/libc++11convenience.la
+ 
+ libstdc___la_LDFLAGS = \
+-	-version-info $(libtool_VERSION) ${version_arg} -lm
++	${libtool_version_info_string} ${version_arg} -lm
+ 
+ libstdc___la_LINK = $(CXXLINK) $(libstdc___la_LDFLAGS)
+ 
+@@ -442,7 +443,8 @@
+ 	$(LIBTOOL) --tag CXX \
+ 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+ 	--mode=compile $(CXX) $(INCLUDES) \
+-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS)
++	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) \
++	$(EXTRA_CXX_FLAGS) -Xcompiler-static -UPIC
+ 
+ LTLDFLAGS = $(shell $(SHELL) $(top_srcdir)/../libtool-ldflags $(LDFLAGS))
+ 
+@@ -552,6 +554,9 @@
+ libstdc++.la: $(libstdc___la_OBJECTS) $(libstdc___la_DEPENDENCIES) 
+ 	$(libstdc___la_LINK) -rpath $(toolexeclibdir) $(libstdc___la_OBJECTS) $(libstdc___la_LIBADD) $(LIBS)
+ 
++libgnustl_shared.la: $(libstdc___la_OBJECTS) $(libstdc___la_DEPENDENCIES)
++	$(libstdc___la_LINK) -rpath $(toolexeclibdir) $(libstdc___la_OBJECTS) $(libstdc___la_LIBADD) $(LIBS)
++
+ mostlyclean-compile:
+ 	-rm -f *.$(OBJEXT)
+ 
