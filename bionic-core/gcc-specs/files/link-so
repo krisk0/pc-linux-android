@@ -7,8 +7,16 @@ a=$(echo $@|sed -r 's:(.*)(-Wl,-soname,.*?)\.so(\S+) (.*):\1 \2.so \4:')
 # cut-off .x.y from -Wl,-soname -Wl,name.so.x.y
 b=$(echo $a|sed -r 's:(.*)(-Wl,-soname +-Wl,.*?)\.so(\S+) (.*):\1 \2.so \4:')
 
+[ -x "$S/hypnotized-gcc/bin/ld" ] || 
+ {
+  echo "link-so: where is my linker?" 1>&2
+  echo "Put it into $S/hypnotized-gcc/bin/ld and call me again" 1>&2
+  exit 1
+ }
+
 exec "$cxx_exe" \
- -mandroid -nostdinc -nostdlib \
+ -mandroid -nostdinc -nostdlib -fno-gnu-unique \
+ -B "$S/hypnotized-gcc/bin" \
  -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now \
  -Wl,--warn-shared-textrel -Wl,--gc-sections -Wl,--hash-style=sysv \
  -L$EPREFIX/system/lib64 -L$EPREFIX/usr/x86_64-linux-android/lib64 \
