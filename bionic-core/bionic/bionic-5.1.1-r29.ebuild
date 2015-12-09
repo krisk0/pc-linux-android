@@ -400,6 +400,7 @@ src_install()
   [ $j == 0 ] && die "binary interpreters not found"
   einfo "$j binaries installed"
 
+  # lots of .so and some .a
   local so="m dl c stdc++"
   for i in $so; do
    local k=lib${i}.so
@@ -408,7 +409,7 @@ src_install()
    j=$p/obj_x86/lib/$k
    cp_so_m $j "$ED/system/lib32"
   done
-
+  
   # 5*2 compiler stubs
   for i in {begin,end}_so end_android begin_{static,dynamic} ; do
    local jj=$(find out -type f -wholename "*x86_64/*crt$i.o")
