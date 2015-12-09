@@ -3,13 +3,25 @@
 
 inherit toolchain-funcs
 
-find_tool()
+maybe_find_tool()
  {
   local d="$EPREFIX/usr/x86_64-linux-android/bin"
+  [ $1 == ld ] && 
+   {
+    # select ld or ld-stage0, not stage1
+    [ -x "$d/$1" ] && { echo "$d/$1" ; return; }
+    [ -x "$d/${1}-stage0" ] && { echo "$d/$1-stage0" ; return; }
+   }
   [ -x "$d/$1" ] && { echo "$d/$1" ; return; }
   [ -x "$d/${1}-stage1" ] && { echo "$d/$1-stage1" ; return; }
   [ -x "$d/${1}-stage0" ] && { echo "$d/$1-stage0" ; return; }
-  die "failed to find tool $1"
+ }
+
+find_tool()
+ {
+  local d=$(maybe_find_tool $1)
+  [ -z "$d" ] && die "failed to find tool $1"
+  echo "$d"
  }
 
 gcc_your_include()
@@ -102,22 +114,33 @@ hypnotize-gcc()
 #  the file-name to stdout
  {
   pushd "$S" >/dev/null
+  
   echo "Hypnotizing $1" 1>&2
   local b=hypnotized-gcc
+  local triple=x86_64-linux-android
   local linker_home="$S/$b/bin"
-  local spec="$EPREFIX/usr/x86_64-linux-android/share/gcc.specs"
+  local spec="$EPREFIX/usr/$triple/share/gcc.specs"
   [ -s "$spec" ] || die "gcc.specs not found. Install bionic-core/gcc-specs"
   rm -rf $b ; mkdir -p $b/{lib,bin,libexec} || die "out of disk space on lib,"
 
   # populate bin
   cd $b/bin
-  local o="$EPREFIX/usr/x86_64-linux-android/bin"
   local i
   # take ld or ld-stage1 or ld-stage0
   for i in ld as ; do
    j=$(find_tool $i)
    ln -s "$j" $i
   done
+  # if other tools exist, link them
+  for i in nm objcopy objdump readelf ar ranlib; do
+   j=$(maybe_find_tool $i)
+   [ -z "$j" ] || ln -s "$j" $i
+  done
+  # GCC wants x86_64-linux-android-nm to compile himself, so we sym-link
+  for i in * ; do
+   [ -x $i ] && ln -s $i ${triple}-$i
+  done
+   
   donor=$("$1" -print-prog-name=cc1|xargs dirname)
   for i in $(ls "$donor") ; do
    ln -s $donor/$i
@@ -179,6 +202,12 @@ hypnotize-gcc()
    echo 's=$(echo "$@"|fgrep -c -- -Wl,-shared)'
    echo 'u=$(echo "$@"|fgrep -c -- -Wl,-soname)'
    echo "[ \${s}\$u == 00 ] || exec '$link_so' \$@"
+   echo 'v=$(echo "$@"|grep -c -- " -o")'
+   echo '[ $v == 0 ] ||'
+   echo ' {'
+   echo '  v=$("$EPREFIX/usr/bin/realpath" . --relative-to "$S")'
+   echo '  echo "$0: from $v called with $@"'
+   echo ' }'
    echo "@PATH='$b/bin:$EPREFIX/system/bin'"
    echo "'$1' $o -DGCC_IS_HYPNOTIZED \$@"
   } | sed \
@@ -190,7 +219,7 @@ hypnotize-gcc()
 
   # the executable will print the name of its creator
   ( printf '#include <stdio.h>\nint main() { printf("@"); return 0; }' |
-   sed "s:@:$S/$i:" | ./$i -xc - -O3 -ohello_world.exe ) ||
+   sed "s:@:$S/$i:" | ./$i -xc - -O3 -ohello_world.exe &> /dev/null) ||
     die "hypnosis failed"
   # good thing linker64 does not care about /usr/lib64 but respects
   #  LD_LIBRARY_PATH
@@ -203,6 +232,15 @@ find-then-hypnotize-gcc()
  {
   local c=$(find_gcc $1)
   hypnotize-gcc "$c"
+ }
+
+stage0-ld-please()
+ {
+  (
+   cd $S/hypnotized-gcc/bin || die "directory $S/hypnotized-gcc/bin went away"
+   ln -sf "$EPREFIX/usr/x86_64-linux-android/bin/ld-stage0" ld
+   [ -x ld ] || die "not executable `pwd`/ld"
+  )
  }
 
 un-hypnotize-gcc()
