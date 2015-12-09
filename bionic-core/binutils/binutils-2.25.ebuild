@@ -30,7 +30,7 @@ src_prepare()
  {
   # Make it approximately like android.googlesource.com/toolchain/binutils 
   #  commit e1103f940633e91aff9c5e56070acab3b58fe0dc
-  patch -p1 < "$FILESDIR/${PV}-GNU-to-Android.patch.diff"
+  patch -p1 < "$FILESDIR/${PV}-GNU-to-Android.patch"
   
   # ld stage0 should have no mind of his own and only be able to find libraries
   #  by paths set on command-line; it also must accept any sysroot from command-
@@ -68,19 +68,20 @@ src_configure()
   local h=x86_64-linux-gnu
   local i
   local j
+  triple=${h%gnu}android
   use stage0 && 
    {
     suffix=-stage0 
-    h="--target=${h/gnu/android} --host=$h --build=$h"
+    h="--target=$triple --host=$h --build=$h"
     prefix=$p
    } \
     ||
    {
-    h=${h/gnu/android}
     h="--target=$h --host=$h --build=$h"
-    prefix=$EPREFIX/usr/x86_64-linux-android/libexec/${P}-stage1
+    h="$h --with-lib-path=/system/lib64:$EPREFIX/usr/$triple/lib64"
+    prefix=$EPREFIX/usr/$triple/libexec/${P}-stage1
    }
-  local gold='--enable-gold --enable-gold=default'
+  gold='--enable-gold --enable-gold=default'
   # Tried to replace includes:
   #  export CFLAGS="$CFLAGS -nostdinc -isystem /usr/x86_64-linux-android/include"
   # This fails with message:
@@ -91,11 +92,11 @@ src_configure()
   CC=$(maybe-hypnotize-gcc)
   einfo "CC=$CC"
 
-  # if C compiler is hypnotized then we will run android executables that need
-  #  LD_LIBRARY_PATH to point to fake libsandbox.so
   local q=${CC/ized.gcc/ized-gcc}
   [ "$q" == "$CC" ] ||
    {
+    # if C compiler is hypnotized then we need LD_LIBRARY_PATH to point to fake
+    #  libsandbox.so
     export LD_LIBRARY_PATH="$q/lib"
 
     # ... and must provide header sys/procfs.h. The file describes ELF format
@@ -146,22 +147,24 @@ src_configure()
      die "patching GLIBC artefact failed"
     cd $S/$k
     
-    # hypnotized g++ is unable to build gold version of binutils 
+    # can build gold version of binutils if STL is available
+    #[ -s "$EPREFIX/usr/$triple/lib64/libgnustl_shared.so" ] ||
+    # No, gold directory does not compile due to header incompatibility
     gold='--disable-gold'
    }
-  ../configure \
-   CC="$CC" \
-   --prefix=$prefix \
-   $h \
-   --enable-initfini-array --disable-nls --disable-shared \
-   --with-bugurl=https://github.com/$k/pc-linux-android \
-   --disable-bootstrap --enable-plugins \
-   --enable-libgomp --disable-libcilkrts --disable-libsanitizer \
-   $gold   \
-   --without-cloog --enable-eh-frame-hdr-for-static \
-   --program-suffix="$suffix" ||
-    die "configure failed, cwd=`pwd`"
-   # --disable-gnu-unique-object is not recognized by binutils
+  o="CC='$CC' --prefix=$prefix 
+    $h 
+    --enable-initfini-array --disable-nls --disable-shared 
+    --with-bugurl=https://github.com/$k/pc-linux-android 
+    --disable-bootstrap --enable-plugins 
+    --enable-libgomp --disable-libcilkrts --disable-libsanitizer 
+    $gold
+    --without-cloog --enable-eh-frame-hdr-for-static 
+    --program-suffix='$suffix'"
+  # --disable-gnu-unique-object not recognized by binutils
+  o=$(echo $o|xargs echo)
+  einfo "configure options: $o"
+  ../configure $o || die "configure failed"
  }
 
 src_compile()
@@ -195,11 +198,11 @@ src_install()
     unset LD_LIBRARY_PATH
     emake DESTDIR="$ED" install
     # add some symlinks
-    local t="$ED/usr/x86_64-linux-android/bin"
+    local t="$ED/usr/$triple/bin"
     mkdir -p $t && cd $t || die "lost in time"
     local s=$(find .. -wholename *libexec/$PN*/bin -type d|grep -v x86_64)
     [ -z "$s" ] && die "cwd=`pwd`; s is empty"
-    local suffix=-stage1
+    suffix=-stage1
     # bin/ path is too long, set some short-cuts
     for t in as ld ar nm objdump objcopy readelf ranlib; do
      local q=$(find $s -type f -name $t)
@@ -207,26 +210,31 @@ src_install()
      ln -s "$q" $t$suffix || die "failed to sym-link $t$suffix -> $q"
     done
     # remove documentation
-    cd $ED/$EPREFIX/usr/*linux*/libexec/$PN* || die "lost in space"
+    cd $ED/usr/*linux*/libexec/$PN* || die "lost in space"
     rm -rf share
-    # copy gold linker from stage0
-    s="$EPREFIX/usr/x86_64-linux-android/bin/ld-stage"
-    local gold_ld="${s}1"
-    [ -x $gold_ld ] || gold_ld="${s}0"
-    [ -x $gold_ld ] || die "gold ld stolen"
-    gold_ld=$(realpath "$gold_ld")
-    cd "$ED/$EPREFIX/usr/x86_64-linux-android/"
-    s=0
-    for t in $(find . -type f -wholename '*/bin/ld') ; do
-     einfo "Replacing executable $t"
-     s=$((s+1))
-     cp "$gold_ld" $t
-    done
-    [ $s == 0 ] && die "failed to find fresh ld"
-    # delete ld.bfd
-    einfo "replaced ld count: $s"
-    find . -type f -wholename '*/bin/ld.bfd' -delete || die "find malfunctions"
+    # keep gold linker from stage0, '[ 0 ] && ' stands for '#ifdef 1'
+    [ 0 ] &&
+     {
+      s="$EPREFIX/usr/$triple/bin/ld-stage0"
+      [ -x $gold_ld ] || die "gold ld stolen"
+      cp "$s" "$ED/usr/$triple/bin/" || die "ld-stage0 does not want to live"
+      # 3 linkers are too many --- delete ld.bfd
+      cd $ED
+      find . -type f -name 'ld.bfd' -delete || die "find malfunctions"
+      einfo "Congratulations, you now have 2 ld:"
+      einfo "\tld-stage0: gold but linked to glibc"
+      einfo "\tld-stage1: not gold but linked to bionic"
+      QA_PRESTRIPPED=usr/$triple/bin/ld-stage0
+     }
+    # ld-stage1 is able to find by himself 64-bit libraries but not 32-bit. She
+    #  will look into libexec/binutils-2.25-stage1/i386-linux-gnu/lib32 and 
+    #  fail. We make her happy and sym-link /system/lib32 there
+    t="$ED/usr/$triple/libexec/${P}$suffix"
+    cd "$t" || die "no such dir $t"
+    q=i386-linux-gnu
+    mkdir $q || die "are we full already?"
+    ln -s /system/lib32 $q || die "32-bit libraries are gone"
    }
   # save some bytes in /var/db/pkg/...
-  unset k p suffix prefix
+  unset k p suffix prefix gold triple
  }
