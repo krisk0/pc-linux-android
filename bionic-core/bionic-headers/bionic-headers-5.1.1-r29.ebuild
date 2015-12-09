@@ -71,15 +71,18 @@ src_install()
   # If you know a shorter way of doing the same as code below, your patch is
   #  welcome
   local i="$ED/$TGT"
-  mkdir -p "$i"
-  cd "$i" ; rm -rf *
+  mkdir -p "$i" ; cd "$i" ; rm -rf *
   local j
   for j in lib{c,m}/include libc/arch-x86_64/include ; do
+   einfo "copying headers from $j"
    cp -r "$S/$j" . || die "copying directory $i failed"
   done
   cd include || die
+  local root=$(pwd)
   for i in $(ls $S/libc/kernel/uapi) ; do
-   cp -r "$S/libc/kernel/uapi/$i" . || die "cp uapi/$i . failed"
+   j=libc/kernel/uapi/$i
+   einfo "copying headers from $j"
+   cp -r "$S/$j" . || die "cp uapi/$i . failed"
   done
 
   # need i386/elf_machdep.h to compile 32-bit code
@@ -123,4 +126,13 @@ src_install()
   #  we inserting _CTYPE_N definition
   sed -i $(find "$ED/$TGT" -type f -wholename '*/ctype.h') -e \
    '/#define\s_CTYPE_D/a #define _CTYPE_N _CTYPE_D'
+   
+  # __locate_t is a pointer under glibc but not a pointer according to 
+  #  xlocale.h. This breaks g++-v4 code such as 
+  #   void _S_create_c_locale(__c_locale&, const char*,__c_locale __old = 0);
+  #  We fix this by making __locate_t pointer to empty struct
+  sed -i "$root/xlocale.h" \
+   -e 's|struct __locale_t;|typedef struct{int foo;}* __locale_t;|' \
+   -e 's+typedef\sstruct\s__.*+typedef __locale_t locale_t;+' || 
+    die "xlocale.h resists"
  }
