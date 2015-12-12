@@ -18,9 +18,8 @@ SRC_URI="mirror://gnu/gcc/gcc-$PV/gcc-$PV.tar.bz2
  http://www.mpfr.org/mpfr-current/mpfr-3.1.3.tar.xz
  http://www.multiprecision.org/mpc/download/mpc-1.0.2.tar.gz
 "
-# Failed to compile cloog, commenting out isl and cloog bundles
-#  http://isl.gforge.inria.fr/isl-0.12.2.tar.bz2
-#  http://www.bastoul.net/cloog/pages/download/cloog-0.18.1.tar.gz
+# Failed to compile cloog with hypnotized compiler, therefore not including isl
+#  and cloog bundles
 
 KEYWORDS=amd64
 SLOT=0
@@ -79,6 +78,10 @@ src_prepare()
   # Call it 4.9a so there is no file collision with real nice gcc-4.9
   cd gcc
   echo 4.9a > BASE-VER
+  
+  # Inject -lgnustl_shared automagically into collect2 command-line
+  ( cd cp; patch -p0 < "$FILESDIR/gnustl_automagic.diff" || 
+     die "g++spec resists" )
 
   # pthread library is bundled with libc, don't need -lpthread
   cd config
@@ -88,10 +91,11 @@ src_prepare()
   # to make /system/bin/linker64 happy, must use pie flag when compiling or
   #  linking. Directive like below published by Magnus Granberg 2014-07-31
   (
-   echo '#define DRIVER_SELF_SPECS\'
-   echo '"%{pie|fpie|fPIE|fno-pic|fno-PIC|fno-pie|fno-PIE|"\'
-   echo '"static|nostdlib|nodefaultlibs|nostartfiles:;:-fPIE -pie}"'
+   echo '#define DRIVER_SELF_SPECS \'
+   echo '"%{pie|fpie|fPIE|fno-pic|fno-PIC|fno-pie|fno-PIE| \'
+   echo ' shared|static|nostdlib|nodefaultlibs|nostartfiles:;:-fPIE -pie}"'
   ) >> linux-android.h || die "linux-android.h resists"
+  # funny thing setup above does not seem to appear in specs, but it works
 
   # cc1 says
   #   #include <...> search starts here:
@@ -101,6 +105,11 @@ src_prepare()
   local d=$EPREFIX/usr/$triple/include
   sed -i i386/gnu-user-common.h -e "s>{posix:-D_POSIX_SOURCE}>& -isystem $d>" ||
     die "POSIX_SOURCE resists"
+  
+  # turn off a loong subroutine that creates a loong libgcc setting; use -lgcc
+  sed -i ../gcc.c -e \
+   's:defined.ENABLE_SHARED_LIBGCC..&&.!defined.REAL_LIBGCC_SPEC.:0:g' \
+   -e 's:=.LIBGCC_SPEC;:= "-lgcc";:g' || die "gcc|libgcc_spec resists"
  }
 
 smarter-link-so()
@@ -273,15 +282,7 @@ src_compile()
   i='xg++ cpp collect2 xgcc'
   # cannot just remove executables --- they are the compiler we are building
   touch -s 197001010000 $i
-  "$emake" $i
-  for j in $i ; do
-   local c0=$(grep -c -- $wrapped_ld $j)
-   local c1=$(grep -c -- ${triple}-stage0-gcc-ld $j)
-   einfo "$j health: ${c0}$c1"
-  done
-  # no need to remake anything else depending on auto-host.h
-  touch -s 197001010000 auto-host.h gcc.o collect2.o \
-   $gcc_srcdir/gcc/{gcc.c,collect2.c}
+  # make install will remake the 4 executables since they are dated
  }
 
 symlink-stub()
@@ -341,12 +342,15 @@ src_install()
    die "ld-stage1 resists"
 
   # We planned to have everything under either /system or /usr/$triple/. However
-  #  some files made in into /usr/bin and /usr/libexec. We move the whole tree
-  #  so
-  #   a) compiler finds his libraries and executables;
-  #   b) all files are under /usr/$triple/
+  #  some files made in into /usr/bin and /usr/libexec. Thus we move the whole 
+  #  tree
   mkdir q && mv $triple q/ && mv q $triple &&
    mv bin libexec $triple || die "mv to $triple/ failed"
+
+  # All public .so are in one of 2 directories (which is /system/lib64 or 
+  #  /usr/$triple/lib64 for 64-bit). Therefore GCC is not installing any of his 
+  #  .so
+  find . -name '*.so*' -delete
 
   QA_PRESTRIPPED='/usr/.*'
 

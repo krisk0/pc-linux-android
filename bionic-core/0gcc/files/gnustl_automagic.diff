@@ -1,0 +1,28 @@
+--- g++spec.c.orig	2015-12-12 11:24:17.135560989 +0300
++++ g++spec.c	2015-12-12 11:35:59.935553379 +0300
+@@ -264,6 +264,9 @@
+ 
+   /* Add one for shared_libgcc or extra static library.  */
+   num_args = argc + added + need_math + (library > 0) * 4 + 1;
++  // krisk0: add gnustl_shared before shared stdc++, 12 Dec 2015
++  if(1==library)
++    ++num_args;
+   new_decoded_options = XNEWVEC (struct cl_decoded_option, num_args);
+ 
+   i = 0;
+@@ -343,6 +346,15 @@
+ 	  j++;
+ 	}
+ #endif
++      // krisk0: add gnustl_shared before shared stdc++, 12 Dec 2015
++      if(1==library)
++        {
++	  generate_option (OPT_l,
++			   "gnustl_shared", 1,
++			   CL_DRIVER, &new_decoded_options[j]);
++	  added_libraries++;
++	  j++;
++	}
+       generate_option (OPT_l,
+ 		       saw_profile_flag ? LIBSTDCXX_PROFILE : LIBSTDCXX, 1,
+ 		       CL_DRIVER, &new_decoded_options[j]);
