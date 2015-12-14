@@ -44,7 +44,7 @@ src_prepare()
   # Android'ish version of jemalloc should bundle je_mallinfo(), inject .c
   cp $a/src/je_mallinfo.c src/ || die "je_mallinfo.c resists"
 
-  ln -s $EROOT/usr/x86_64-linux-android/include/malloc.h src/aosp_malloc.h
+  ln -s $EPREFIX/usr/x86_64-linux-android/include/malloc.h src/aosp_malloc.h
   sed -i Makefile.in \
    -e '/ifeq .$.enable_valgrind/i \ $(srcroot)src/je_mallinfo.c' \
    -e 's:$(srcroot)src/tsd.c:& \\:' || die "je_mallinfo.c injection failed"
@@ -81,7 +81,7 @@ src_configure()
   einfo "will use gcc $gcc"
   local I=$(gcc_your_include $gcc)
   einfo found gcc include dir $I
-  f="$f -nostdinc -isystem $EROOT/usr/x86_64-linux-android/include -isystem $I"
+  f="$f -nostdinc -isystem $EPREFIX/usr/x86_64-linux-android/include -isystem $I"
   export CFLAGS="$f"
   einfo "using flags $CFLAGS"
   autotools-multilib_src_configure
