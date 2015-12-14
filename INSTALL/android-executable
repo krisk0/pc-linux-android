@@ -1,0 +1,64 @@
+#!/bin/sh
+
+# $1 : path to executable that needs friend
+
+# This scripts either
+#  * does nothing,
+#  * or writes some files into $PORTAGE_TMPDIR
+#  * or writes some files into $EPREFIX/usr/x86_64-linux-android/libexec/
+#     and possibly cleans $PORTAGE_TMPDIR
+
+# EPREFIX with spaces not supported
+
+p=`equery b $1|head -1`
+[ -z "$p" ] && { echo "Failed to find package for $1"; exit 1; }
+p="=$p"
+q=$(equery w $p)
+[ -z "$q" ] && { echo "Failed to find ebuild for package $p"; exit 1; }
+
+export CC=`equery f bionic-core/0gcc|egrep 'bin/.*-gcc$'|head -1`
+export CXX=`equery f bionic-core/0gcc|egrep 'bin/.*-g\+\+$'|head -1`
+
+( [ -z $CC ] || [ -z $CXX ] ) && { echo "failed to find compiler"; exit 1; }
+
+echo "using C compiler $CC"
+echo "compiling $q"
+
+ebuild $q clean install 1>/dev/null ||
+ {
+  echo ebuild failed
+  exit 1
+ }
+
+. /etc/portage/make.conf || exit
+[ -z $PORTAGE_TMPDIR ] || echo "PORTAGE_TMPDIR appears to be $PORTAGE_TMPDIR"
+[ -z $PORTAGE_TMPDIR ] &&
+ {
+  PORTAGE_TMPDIR=/tmp/
+  echo "trying /tmp/ as PORTAGE_TMPDIR"
+ }
+PORTAGE_TMPDIR="$PORTAGE_TMPDIR/portage"
+
+n=$(basename $1)
+found=0
+p=${p#=}
+t=$(echo $p|sed s:/:--:)
+for f in $(find $PORTAGE_TMPDIR -name $n|fgrep /image/) ; do
+ found=$((1+found))
+ g=$(file $f|egrep -c 'ELF.*LSB.*interpreter /system/bin/linker')
+ [ $g == 0 ] && continue
+ g="$EPREFIX/usr/x86_64-linux-android/libexec/$t"
+ mkdir -p $g
+ h=$(dirname $f)
+ echo "cp -r $h $g"
+ cp -r "$h" $g || { echo "cp failed"; exit 1; }
+ # clean $PORTAGE_TMPDIR
+ p=$PORTAGE_TMPDIR/${p%.ebuild}
+ [ -d $p ] || ( echo "no such directory $p"; exit 1 )
+ echo "removing directory $p"
+ rm -rf $p
+ exit 0
+done
+echo "failed to find executable in $PORTAGE_TMPDIR"
+echo "matching files found: $found"
+exit 1

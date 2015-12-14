@@ -1,0 +1,19 @@
+#!/bin/sh
+
+r=`equery l -f 'bionic-core/.*'`
+[ -z "$r" ] || emerge -C $r 2>/dev/null
+
+# to forcibly clean target directories, uncomment line below
+#rm -rf /system $EPREFIX/usr/x86_64-linux-android
+
+export FEATURES='-sandbox -usersandbox'
+unset CC CXX
+
+cd /your/private/overlay/bionic-core || exit
+for i in `find -L . -name *.ebuild` ; do
+ ebuild $i digest || exit
+done
+
+e="emerge -q bionic-core"
+bi=bionic-core
+$e/bionic && USE=-stage0 $e/binutils && $e/gmp $bi/GNU_STL $bi/0gcc $bi/fake-pthread

@@ -1,0 +1,71 @@
+This file and other files in this .zip are licensed under GPL-3, unless stated
+ otherwise in one of lines close to start of file.
+
+This file has toolchain build/installation instructions. See tech_req.txt for
+ technical requirements.
+
+1. Use computer running Gentoo Linux or its dialect, or install portage package
+ manager onto rpm-ish or Debian-ish or whatever Linux.
+
+2. Find or create overlay. Overlay is a place for your private .ebuild scripts,
+ and also a place where crossdev script stores .ebuild's. For instance, when
+ bulding uclibc toolchain, crossdev creates directories like this:
+
+ /your/private/overlay/cross-x86_64-pc-linux-uclibc/uclibc
+                                                    linux-headers
+                                                    gcc
+
+ Read Gentoo handbook on how to create overlay.
+
+3. Put my .ebuild's and .eclass'es into the overlay:
+
+ /your/private/overlay/cross-x86_64-pc-linux-uclibc
+                      /bionic-core/0gcc/0gcc-4.9.2.ebuild
+                                   fake-pthread/...
+                                   ...
+                      /eclass/befriend-gcc.eclass
+                              gcc-configure.eclass
+                              lunch-with-android.eclass
+
+4. Add bionic-core to categories list:
+ 
+ echo bionic-core >> /etc/portage/categories
+
+5. Set safe CFLAGS in your /etc/portage/make.conf, especially if you plan to
+ move compiled toolchain to a weaker computer.
+ 
+ CFLAGS="-O2 -pipe -march=x86_64"
+ CXXFLAGS="$CFLAGS"
+ 
+ If you compile with CFLAGS='-march=native' on Broadwell, do not move the 
+  resulting binary code to your tablet --- it won't work unless your tablet 
+  is equipped with Broadwell.
+  
+ Also set MAKEOPTS to -jX, where X is your CPU core count minus one:
+ 
+ MAKEOPTS=-j3
+ 
+ ABI_X86 should be unset or set to its default value:
+ 
+ ABI_X86="32 64"
+
+6. Make sure portage tmp directory (denoted PORTAGE_TMPDIR in make.conf) can
+ take extra 800M.
+
+6. Replace /your/private/overlay in uninstall.install script with real path to
+ your overlay. Run the script as root. It should auto-magically download some 
+ .zip's from github.com and possibly some files from a standard Gentoo mirror, 
+ before building. Build time (not counting download time) should be less than 10
+ minutes on your modern x86_64 Intel desktop with already installed gcc-4.9.3 and
+ clang-5.0.
+
+7. On error look into /var/log/portage. Once compilation is successful, test 
+ if the fresh compiler can compile app-arch/p7zip:
+ 
+ android-executable /usr/lib64/p7zip/7z
+
+ android-executable script requires no changes unless your make.conf is not in 
+  /etc/portage/. Command above should install a piece of 7-zip (including shared
+  executable called 7z) into  
+  /usr/x86_64-linux-android/libexec/app-arch--p7zip-15.09 where where 15.09 is a
+  version tag of your installed app-arch/p7zip package.

@@ -1,0 +1,9 @@
+1. Superuser (root) access to Linux or compatible computer with Portage package
+ manager.
+
+2. Compiled kernel source in /usr/src/linux/
+
+3. Internet access to download .zip, .bz2, ... from github.com and Gentoo 
+ distfiles mirror, or manually downloaded files in /distfiles.
+
+4. Computer should be powerful enough to compile Clang and GCC.
