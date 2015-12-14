@@ -27,6 +27,7 @@ k=krisk0
 DEPEND="
  || ( >=sys-devel/gcc-4.9 >=cross-x86_64-pc-linux-uclibc/gcc-4.9 )
  bionic-core/bionic bionic-core/gcc-specs bionic-core/binutils[-stage0]
+ bionic-core/GNU_STL
  bionic-core/gmp
  "
 
@@ -95,7 +96,7 @@ src_prepare()
    echo '"%{pie|fpie|fPIE|fno-pic|fno-PIC|fno-pie|fno-PIE| \'
    echo ' shared|static|nostdlib|nodefaultlibs|nostartfiles:;:-fPIE -pie}"'
   ) >> linux-android.h || die "linux-android.h resists"
-  # funny thing setup above does not seem to appear in specs, but it works
+  # strange thing: setup above does not seem to appear in specs, but it works
 
   # cc1 says
   #   #include <...> search starts here:
