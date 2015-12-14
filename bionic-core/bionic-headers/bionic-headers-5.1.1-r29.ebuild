@@ -3,7 +3,7 @@
 
 EAPI=5
 
-DESCRIPTION="Install core headers to $EROOT/usr/x86_64-linux-android/include"
+DESCRIPTION="Install core headers to $EPREFIX/usr/x86_64-linux-android/include"
 a=android
 B=bionic
 TGT=/usr/x86_64-linux-$a
@@ -28,7 +28,7 @@ src_unpack()
 src_prepare()
  {
   # sanity check on kernel sources
-  local K=/usr/src/linux
+  K=/usr/src/linux
   [ -d $K/include/uapi/sound ] ||
    die "Are you sure you have a compiled kernel in $K?"
 
@@ -50,6 +50,11 @@ src_prepare()
   # remove duplicate definition of flock64
   sed -e 's:struct flock64:struct redefined_flock64:g' -i \
    libc/include/fcntl.h || die "failed to patch fcntl.h"
+
+  # since we plan to define getpass() subroutine in libpthread.so, inject
+  #  forward definition into pthread.h
+  sed -i libc/include/pthread.h -e \
+   '/__END_DECLS/i char* getpass(const char *);' || die 'pthread.h resists'
  }
 
 src_compile()
@@ -57,7 +62,7 @@ src_compile()
   local g=libc/kernel/tools/generate_uapi_headers.sh
   export ANDROID_BUILD_TOP="$WORKDIR"
 
-  $g --skip-generation --use-kernel-dir /usr/src/linux || die "$g failed"
+  $g --skip-generation --use-kernel-dir $K || die "$g failed"
 
   local u=libc/kernel/tools/update_all.py
   $u || die "$u failed"
@@ -100,7 +105,7 @@ src_install()
   [ -f asm/termios.h ] || die 'termios.h missing'
   ls |grep asm-|grep -v asm-generic|xargs rm -rf
 
-  # machine/fenv.h is wanted by fenv.h --- no, bad idea, let it stay in 
+  # machine/fenv.h is wanted by fenv.h --- no, bad idea, let it stay in
   #  i387/machine/ and amd64/machine
   #  cp amd64/machine/fenv.h machine/ || die "fenv.h resists"
 
@@ -126,13 +131,15 @@ src_install()
   #  we inserting _CTYPE_N definition
   sed -i $(find "$ED/$TGT" -type f -wholename '*/ctype.h') -e \
    '/#define\s_CTYPE_D/a #define _CTYPE_N _CTYPE_D'
-   
-  # __locate_t is a pointer under glibc but not a pointer according to 
-  #  xlocale.h. This breaks g++-v4 code such as 
+
+  # __locate_t is a pointer under glibc but not a pointer according to
+  #  xlocale.h. This breaks g++-v4 code such as
   #   void _S_create_c_locale(__c_locale&, const char*,__c_locale __old = 0);
   #  We fix this by making __locate_t pointer to empty struct
   sed -i "$root/xlocale.h" \
    -e 's|struct __locale_t;|typedef struct{int foo;}* __locale_t;|' \
-   -e 's+typedef\sstruct\s__.*+typedef __locale_t locale_t;+' || 
+   -e 's+typedef\sstruct\s__.*+typedef __locale_t locale_t;+' ||
     die "xlocale.h resists"
+
+  unset K
  }
