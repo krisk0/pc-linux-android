@@ -10,7 +10,8 @@
 
 EAPI=5
 
-inherit eutils libtool toolchain-funcs multilib-minimal befriend-gcc
+inherit eutils libtool toolchain-funcs multilib-minimal befriend-gcc \
+ gentoo-android
 
 # While bionic-core/binutils works with sandbox turned on, this ebuild does not
 #  I think some script unsets LD_LIBRARY_PATH
@@ -107,28 +108,6 @@ multilib_src_install() {
 
 multilib_src_install_all()
  {
-  cd "$ED/usr"
-  local p=x86_64-linux-android
-  mkdir -p $p/{lib64,include}
-  (
-   local so=$(find . -type f -name "lib$PN.so.*"|head -1)
-   "$EPREFIX/usr/bin/strip" --strip-all "$so"
-   so=$(dirname $so)
-   find $so -type l -delete
-   einfo "after trimming $so contains files $(ls -l $so)"
-   mv $so/* $p/lib64/
-   mv include/$PN.h $p/include/
-  ) || die "failed to find or move .so or .h"
-  ls | grep -v $p | xargs rm -rf
-  ( cd $p/lib64/ && rm -f *.la && mv lib$PN.so.* lib$PN.so ) || 
-   die "renaming .so failed"
+  zap_doc_a_move_so_h
   unset emake ac_cv_host ac_build_alias CC CXX LDFLAGS
  }
-
-pkg_preinst() {
- preserve_old_lib /usr/$(get_libdir)/libgmp.so.3
-}
-
-pkg_postinst() {
- preserve_old_lib_notify /usr/$(get_libdir)/libgmp.so.3
-}

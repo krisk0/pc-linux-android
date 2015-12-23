@@ -93,6 +93,28 @@ find_gcc()
   [ -z "$c" ] || { echo $c; return; }
  }
 
+find_gcc_package_with_lto()
+ {
+  local c
+  for c in sys-devel cross-x86_64-pc-linux-uclibc ; do
+   local p=$(best_version ">=$c/gcc-4.9.3")
+   [ -z $p ] && continue
+   local k=$(equery f $p|fgrep -c liblto_plugin.so)
+   [ $k == 0 ] && continue
+   echo $p ; return
+  done
+ }
+ 
+find_lto_capable_nm()
+ {
+  local p=`find_gcc_package_with_lto`
+  [ -z $p ] && die "find_gcc_package_with_lto() failed"
+  # gcc-bin/4.9.3/gcc-nm
+  local n=$(equery f $p|grep gcc-bin|grep gcc-nm|head -1)
+  [ -z $n ] && die "no gcc-nm in $p"
+  echo $n
+ }
+
 find_gxx()
 # $1: required version such as 520 for 5.2.0
 # print to stdout g++ executable name
@@ -287,4 +309,14 @@ hypnotize-gxx-too()
    die "patching GLIBC artefact failed"
   echo "$cxx"
   popd >/dev/null
+ }
+
+0gcc-gcc()
+ {
+  equery f bionic-core/0gcc|egrep 'bin/.*-gcc$'|head -1
+ }
+
+0gcc-gxx()
+ {
+  equery f bionic-core/0gcc|egrep 'bin/.*-g\+\+$'|head -1
  }

@@ -3,9 +3,9 @@
 
 EAPI=5
 inherit befriend-gcc check-reqs gcc-configure
-HOMEPAGE=https://android.googlesource.com/toolchain/binutils
+HOMEPAGE=http://gcc.gnu.org/
 DESCRIPTION="Stage0 gcc compiler, built with hypnotized compiler"
-LICENSE="GPL-3"
+LICENSE=GPL-3
 
 # While bionic-core/binutils supports sandbox, this .ebuild does not. Sorry
 #  for unconvenience
@@ -23,7 +23,6 @@ SRC_URI="mirror://gnu/gcc/gcc-$PV/gcc-$PV.tar.bz2
 
 KEYWORDS=amd64
 SLOT=0
-k=krisk0
 DEPEND="
  || ( >=sys-devel/gcc-4.9 >=cross-x86_64-pc-linux-uclibc/gcc-4.9 )
  bionic-core/bionic bionic-core/gcc-specs bionic-core/binutils[-stage0]
@@ -341,7 +340,7 @@ src_install()
   # compiler needs ld
   cp $EPREFIX/usr/$triple/bin/ld-stage1 bin/$triple-stage0-gcc-ld ||
    die "ld-stage1 resists"
-
+  
   # We planned to have everything under either /system or /usr/$triple/. However
   #  some files made in into /usr/bin and /usr/libexec. Thus we move the whole 
   #  tree

@@ -3,7 +3,7 @@
 
 # Code that helps to unpack or configure gcc lives here
 
-inherit base
+inherit base befriend-gcc
 
 gcc-unpack()
  {
@@ -19,8 +19,8 @@ gcc-unpack()
   S="$WORKDIR/$k"
   gcc_srcdir="$WORKDIR/gCc"
   cd gCc
-  rm -rf libjava 
-  cd gcc/config 
+  rm -rf libjava
+  cd gcc/config
   find . -maxdepth 1 -type d|grep -v i386|xargs rm -rf
   # Lots of unneeded stuff remains
  }
@@ -42,17 +42,58 @@ gcc-configure-options()
   echo "$o"
  }
 
+lto_capable_tools()
+# sym-link lto-capable nm ar ranlib to $1
+ {
+  local n=`find_lto_capable_nm`
+  (
+   cd $1
+   rm -f nm ar ranlib
+   ln -s $n nm
+   local i
+   n=${n%nm}
+   for i in ar ranlib ; do
+    ln -s ${n}$i $i
+   done
+  )
+ }
+
 native-gcc-configure-options()
  {
-  root=$EPREFIX/usr
-  h=x86_64-linux-gnu
-  o="--target=$h --host=$h --build=$h"
-  o="$o --disable-plugins --enable-languages=c,c++"
+  triple=x86_64-linux-android
+  local h=$triple
+  o="--target=$h --host=$h --build=$h --prefix=$EPREFIX/usr"
+  o="$o --enable-plugins --enable-languages=c,c++"
   o="$o --enable-libgomp --enable-initfini-array --disable-nls"
   o="$o --disable-libcilkrts --disable-libsanitizer --enable-gold"
+  o="$o --disable-libssp"
   o="$o --with-bugurl=https://github.com/$k/pc-linux-android"
-  o="$o --with-gmp-lib=$root/lib64 --with-gmp-include=$root/include"
-  o="$o --with-mpfr-lib=$root/lib64 --with-mpfr-include=$root/include"
-  o="$o --with-mpc-lib=$root/lib64 --with-mpc-include=$root/include"
+  o="$o --with-gnu-as"
+  local ld=`equery f 0gcc|egrep gcc-ld$|fgrep /bin/|head -1`
+  o="$o --with-gnu-ld"
+  build_time_tools="$WORKDIR/bin/"
+  mkdir -p $build_time_tools
+  o="$o --with-build-time-tools=$build_time_tools"
+  # cook tools
+  cp -L `find_tool as` $build_time_tools/as
+  cp -L `which strip` $ld $build_time_tools || die "tools resist cp"
+  local i
+  # GCC wants ar, ranlib, nm with lto plugin support. Take the 3 tools
+  #  from sys-devel/gcc
+  lto_capable_tools $build_time_tools
+  (
+   cd $build_time_tools
+   for i in `ls|fgrep -- -` ; do
+    mv $i ${i##*-} || die "renaming bin/$i failed"
+   done
+  )
+  local root=$EPREFIX/usr/$h
+  local l64=$root/lib64
+  local x
+  for x in gmp isl mpfr isl ; do
+   o="$o --with-${x}-lib=$l64 --with-${x}-include=$root/include"
+  done
+  o="$o --disable-libstdcxx --with-host-libstdcxx=-lgnustl_shared"
+  rm -rf "$gcc_srcdir/libssp"
   echo "$o"
  }
