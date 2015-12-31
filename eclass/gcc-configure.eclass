@@ -22,7 +22,7 @@ gcc-unpack()
   rm -rf libjava
   cd gcc/config
   find . -maxdepth 1 -type d|grep -v i386|xargs rm -rf
-  # Lots of unneeded stuff remains
+  triple=x86_64-linux-android
  }
 
 gcc-configure-options()
@@ -62,19 +62,21 @@ native-gcc-configure-options()
  {
   triple=x86_64-linux-android
   local h=$triple
+  local s=-L/system/lib64
   o="--target=$h --host=$h --build=$h --prefix=$EPREFIX/usr"
   o="$o --enable-plugins --enable-languages=c,c++"
   o="$o --enable-libgomp --enable-initfini-array --disable-nls"
   o="$o --disable-libcilkrts --disable-libsanitizer --enable-gold"
   o="$o --disable-libssp"
   o="$o --with-bugurl=https://github.com/$k/pc-linux-android"
-  o="$o --with-gnu-as"
-  local ld=`equery f 0gcc|egrep gcc-ld$|fgrep /bin/|head -1`
-  o="$o --with-gnu-ld"
+  o="$o --with-gnu-as --with-gnu-ld"
+  o="$o --with-boot-ldflags=-static-libgcc"
+  #o="$o --with-stage1-libs=$s --with-boot-libs=$s"
+  # cook tools
   build_time_tools="$WORKDIR/bin/"
   mkdir -p $build_time_tools
   o="$o --with-build-time-tools=$build_time_tools"
-  # cook tools
+  local ld=`equery f 0gcc|egrep gcc-ld$|fgrep /bin/|head -1`
   cp -L `find_tool as` $build_time_tools/as
   cp -L `which strip` $ld $build_time_tools || die "tools resist cp"
   local i
@@ -90,10 +92,11 @@ native-gcc-configure-options()
   local root=$EPREFIX/usr/$h
   local l64=$root/lib64
   local x
-  for x in gmp isl mpfr isl ; do
+  for x in gmp isl mpfr mpc ; do
    o="$o --with-${x}-lib=$l64 --with-${x}-include=$root/include"
   done
-  o="$o --disable-libstdcxx --with-host-libstdcxx=-lgnustl_shared"
+  o="$o --disable-libstdcxx"
+  #o="$o --with-host-libstdcxx=-lgnustl_shared"
   rm -rf "$gcc_srcdir/libssp"
   echo "$o"
  }

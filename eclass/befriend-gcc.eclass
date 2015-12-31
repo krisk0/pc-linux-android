@@ -320,3 +320,27 @@ hypnotize-gxx-too()
  {
   equery f bionic-core/0gcc|egrep 'bin/.*-g\+\+$'|head -1
  }
+
+gxx-include()
+ {
+  local i
+  for i in $($1 -E -x c++ - -v < /dev/null 2>&1 | fgrep include/c++/ | \
+             fgrep -v 'ignoring duplicate' | sed 's:^\s+::') ; do
+   [ -d $i ] || continue
+   [ -f $i/new ] && { realpath $i ; return; }
+  done
+  die "failed to find c++ header new"
+ }
+
+symlink-stub()
+ {
+  local t=/$EPREFIX/$(realpath . --relative-to $ED)
+  einfo "symlink-stub(): will put sym-links into $t"
+  [ -z $t ] && die "realpath says nothing"
+  local d=$(realpath $1 --canonicalize-missing --relative-to $t)
+  [ -z $d ] && die "realpath said nothing"
+  einfo "symlink-stub(): way down: $d"
+  for t in `ls $1/*.so` `ls $1/*.o` ; do
+   ln -sf $d/$(basename $t)
+  done
+ }

@@ -1,4 +1,4 @@
-# Copyright      2015 Денис Крыськов
+#Copyright      2015 Денис Крыськов
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=5
@@ -23,11 +23,11 @@ SRC_URI="mirror://gnu/gcc/gcc-$PV/gcc-$PV.tar.bz2
 
 KEYWORDS=amd64
 SLOT=0
+b=bionic-core
+RDEPEND="$b/bionic $b/gcc-specs $b/binutils[-stage0] $b/GNU_STL $b/gmp"
 DEPEND="
- || ( >=sys-devel/gcc-4.9 >=cross-x86_64-pc-linux-uclibc/gcc-4.9 )
- bionic-core/bionic bionic-core/gcc-specs bionic-core/binutils[-stage0]
- bionic-core/GNU_STL
- bionic-core/gmp
+  || ( >=sys-devel/gcc-4.9 >=cross-x86_64-pc-linux-uclibc/gcc-4.9 )
+  $RDEPEND
  "
 
 CHECKREQS_DISK_BUILD=800M
@@ -75,7 +75,7 @@ src_prepare()
    sed -i $l -e 's:#if.defined.__GLIBC_PREREQ..&&.*:#if 0:g'
   done
 
-  # Call it 4.9a so there is no file collision with real nice gcc-4.9
+  # Call it 4.9a, 'a' stands for android
   cd gcc
   echo 4.9a > BASE-VER
   
@@ -285,19 +285,6 @@ src_compile()
   # make install will remake the 4 executables since they are dated
  }
 
-symlink-stub()
- {
-  local t=/$EPREFIX/$(realpath . --relative-to $ED)
-  einfo "symlink-stub(): will put sym-links into $t"
-  [ -z $t ] && die "realpath says nothing"
-  local d=$(realpath $1 --canonicalize-missing --relative-to $t)
-  [ -z $d ] && die "realpath said nothing"
-  einfo "symlink-stub(): way down: $d"
-  for t in `ls $1/*.so` `ls $1/*.o` ; do
-   ln -sf $d/$(basename $t)
-  done
- }
-
 src_install()
  {
   export PATH="$S/hypnotized-gcc/bin:$saved_PATH"
@@ -344,8 +331,8 @@ src_install()
   # We planned to have everything under either /system or /usr/$triple/. However
   #  some files made in into /usr/bin and /usr/libexec. Thus we move the whole 
   #  tree
-  mkdir q && mv $triple q/ && mv q $triple &&
-   mv bin libexec $triple || die "mv to $triple/ failed"
+  mkdir q && mv bin libexec $triple q/ && mv q $triple || 
+   die "mv to $triple/ failed"
 
   # All public .so are in one of 2 directories (which is /system/lib64 or 
   #  /usr/$triple/lib64 for 64-bit). Therefore GCC is not installing any of his 
@@ -363,5 +350,5 @@ src_install()
   symlink-stub /system/lib32
 
   unset k CHECKREQS_DISK_BUILD gcc_srcdir emake triple root patch saved_PATH \
-   old_ld wrapped_ld
+   old_ld wrapped_ld b
  }
