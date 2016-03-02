@@ -57,7 +57,7 @@ This file has toolchain build/installation instructions. See tech_req.txt for
  .zip's from github.com and possibly some files from a standard Gentoo mirror, 
  before building. Build time (not counting download time) should be less than 10
  minutes on your modern x86_64 Intel desktop with already installed gcc-4.9.3 and
- clang-5.0.
+ clang-3.5.
 
 7. On error look into /var/log/portage. Once compilation is successful, test 
  if the fresh compiler can compile app-arch/p7zip:

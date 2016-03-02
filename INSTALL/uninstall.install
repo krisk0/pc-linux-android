@@ -16,4 +16,4 @@ done
 
 e="emerge -q bionic-core"
 bi=bionic-core
-$e/bionic && USE=-stage0 $e/binutils && $e/gmp $bi/GNU_STL $bi/0gcc $bi/fake-pthread
+$e/bionic && USE=-stage0 $e/binutils && $e/gcc $bi/fake-pthread

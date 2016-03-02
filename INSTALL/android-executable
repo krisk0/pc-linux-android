@@ -16,8 +16,8 @@ p="=$p"
 q=$(equery w $p)
 [ -z "$q" ] && { echo "Failed to find ebuild for package $p"; exit 1; }
 
-export CC=`equery f bionic-core/0gcc|egrep 'bin/.*-gcc$'|head -1`
-export CXX=`equery f bionic-core/0gcc|egrep 'bin/.*-g\+\+$'|head -1`
+export CC=`equery f bionic-core/gcc|egrep 'bin/.*-gcc$'|head -1`
+export CXX=`equery f bionic-core/gcc|egrep 'bin/.*-g\+\+$'|head -1`
 
 ( [ -z $CC ] || [ -z $CXX ] ) && { echo "failed to find compiler"; exit 1; }
 
