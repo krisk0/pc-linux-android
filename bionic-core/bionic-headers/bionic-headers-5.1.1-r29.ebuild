@@ -16,6 +16,7 @@ RDEPEND=''
 DEPEND=""      # just need compiled kernel sources in /usr/src/linux
 SLOT=0
 LICENSE=BSD
+RESTRICT=mirror
 
 S="$WORKDIR/$B"
 
