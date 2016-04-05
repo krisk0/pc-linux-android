@@ -38,7 +38,23 @@ zap_doc_a_move_so_h()
    (
     cd include
     d=`ls *.h 2>/dev/null`
-    [ -z "$d" ] || ( mkdir -p ../$p/include ; mv $d ../$p/include/ || die )
+    [ -z "$d" ] || 
+     ( 
+      mkdir -p ../$p/include
+      echo "moving include file $d"
+      mv $d ../$p/include/ || die 
+      for d in `ls` ; do
+       [ -d $d ] || continue
+       echo "moving include directory $d"
+       cp -r $d ../$p/include/ || die
+       rm -rf $d || die
+      done
+     )
    )
   find . -type d -depth -empty -exec rmdir "{}" \;
+ }
+
+android_gcc()
+ {
+  best_version bionic-core/gcc|xargs equery f |grep -- -gcc|head -1
  }
