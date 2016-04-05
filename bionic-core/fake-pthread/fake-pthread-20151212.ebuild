@@ -9,7 +9,7 @@ HOMEPAGE=https://github.com/$k/pc-linux-android
 DESCRIPTION="Fake pthread.so containing only getpass() subroutine"
 LICENSE=LGPL-3
 SLOT=0
-DEPEND=bionic-core/0gcc
+DEPEND=bionic-core/gcc
 KEYWORDS=amd64
 IUSE=""
 
