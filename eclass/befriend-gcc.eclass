@@ -48,17 +48,13 @@ gcc_your_version()
 gcc-in-package()
  {
   [ -z $1 ] ||
-   {
-    (equery f $1|fgrep /gcc-bin/|egrep -- -gcc$|head -1) 2>/dev/null
-   }
+   (equery f $1|fgrep /gcc-bin/|egrep -- -gcc$|head -1) 2>/dev/null
  }
 
 gxx-in-package()
  {
   [ -z $1 ] ||
-   {
-    (equery f $1|fgrep /gcc-bin/|egrep -- -g++$|head -1) 2>/dev/null
-   }
+   (equery f $1|fgrep /gcc-bin/|egrep -- '-g\+\+$'|head -1) 2>/dev/null
  }
 
 find-gcc-in-category()
@@ -121,12 +117,12 @@ find_gxx()
  {
   # respect user setting and try $CXX first
   [ $(gcc_your_version "$CXX") -ge $1 ] && { echo "$CXX" ; return; }
-  local c=`which g++`
-  [ $(gcc_your_version "$c") -ge $1 ] && { echo "$c" ; return; }
   c=$(find-gxx-in-category sys-devel $1)
   [ -z "$c" ] || { echo $c; return; }
   c=$(find-gxx-in-category cross-x86_64-pc-linux-uclibc $1)
   [ -z "$c" ] || { echo $c; return; }
+  local c=`which g++`
+  [ $(gcc_your_version "$c") -ge $1 ] && { echo "$c" ; return; }
  }
 
 hypnotize-gcc()
