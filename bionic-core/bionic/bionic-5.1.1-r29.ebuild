@@ -4,7 +4,7 @@
 
 EAPI=5
 
-# This package is very sensitive to compiler and binutils version (for instance,
+# This package is very sensitive to compiler and binutils version. For instance,
 #  GCC 4.8.4 does not work. You may however try to use any gcc or g++ >= 4.9.0:
 # CC=... CXX=...
 
@@ -32,6 +32,9 @@ DESCRIPTION="64- and 32-bit bionic C libraries, crt*.o and linker*"
 HOMEPAGE=https://github.com/android/platform_bionic
 
 inherit toolchain-funcs befriend-gcc lunch-with-android
+
+# O9: optimize for current micro-arch: -O3 -march=native 
+IUSE="O9 verbose"
 
 a=android
 B=bionic
@@ -212,6 +215,8 @@ src_prepare()
   c_opt="-mandroid -nostdinc '-I$c_opt'"
   c_opt="$c_opt -I$ip"
   local gpp=$(find_gxx 490)
+  einfo "Will use gcc $gcc"
+  einfo "Will use g++ $gpp"
   # Compilation might fail if gcc and g++ belong to different packages. If this
   #  happens, try setting CC and CXX vars wisely.
   local x
@@ -270,14 +275,23 @@ src_prepare()
     die "vendor/lib resists"
     
   # un-hide compiler flags 
-  #find . -iname '*.mk' | xargs sed -e 's:$(hide) ::g' -i
+  use verbose && ( sed -i build/core/definitions.mk -e \
+   's|hide := @|hide :=|' || die )
+
+  # change compiler flags
+  use O9 && [ .$BIONIC_MICROARCH != . ] &&
+   (
+    cd build/core/combo/arch/x86_64 || die
+    einfo "Will optimize for $BIONIC_MICROARCH"
+    cp $BIONIC_MICROARCH.mk x86_64.mk || die
+   )
  }
 
 clang_mulodi4()
-# llvm comes without Android.mk stuff. This subroutine is derived from AOSP .mk
-#  files, and does roughly the same as make utility, when it builds mulodi4.o
-#  object. It means that all bugs are either mine (Денис Крыськов) or belong to
-#  AOSP.
+# llvm comes without Android.mk stuff. clang_mulodi4() subroutine is derived 
+#  from AOSP .mk files, and does roughly the same as make utility, when it 
+#  builds mulodi4.o object. It means that all bugs are either mine (Денис 
+#  Крыськов) or belong to AOSP.
 # $1: extra compiler flag
 # $2: target file
  {
@@ -332,7 +346,16 @@ src_compile()
    j=$j/libcompiler_rt-extras_intermediates
    mkdir -p $j || "mkdir failed, i=$i"
    >$j/export_includes || "export_includes resist"
-   clang_mulodi4 "-m$i -march=$arch -target $archT" $j/mulodi4.o
+   local o="-march=$arch"
+   # Use -march= from haswell.mk copied over x86_64.mk
+   [ $i == 64 ] &&
+    {
+     o=$(fgrep -- -march= build/core/combo/arch/x86_64/x86_64.mk|xargs --) || 
+      die
+    }
+   o="-m$i $o -target $archT"
+   einfo "i=$i base mulodi4 CFLAGS: $o"
+   clang_mulodi4 "$o" $j/mulodi4.o
    cd $j || die "chdir to $j failed"
    "$ar" crsD libcompiler_rt-extras.a mulodi4.o || die "ar failed"
    einfo "created libcompiler_rt-extras.a in `pwd`"
@@ -357,7 +380,7 @@ src_compile()
    j="$j $o/lib/crtbegin_$i.o"
    j="$j ${o}_x86/lib/crtbegin_$i.o"
   done
-  sed -i lunch-make.sh -e s-@path-/usr/bin:/bin-g -e "s:@tgt:$j:"
+  sed -i lunch-make.sh -e s-@path-/usr/bin:/bin-g -e "s:@tgt:$j:" || die
 
   # TODO: which make
   "$BASH" ./lunch-make.sh || die "lunch-make failed"

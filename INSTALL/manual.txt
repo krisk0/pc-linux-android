@@ -69,3 +69,13 @@ This file has toolchain build/installation instructions. See tech_req.txt for
   executable called 7z) into  
   /usr/x86_64-linux-android/libexec/app-arch--p7zip-15.09 where where 15.09 is a
   version tag of your installed app-arch/p7zip package.
+
+==================================================================================
+
+Optimization
+~~~~~~~~~~~~
+Since 19 Apr 2016 bionic ebuild supports micro-arch optimization:
+
+ BIONIC_MICROARCH=haswell USE=O9 emerge bionic-core/bionic
+
+Instead of haswell you can put sandybridge, x86_64-atom, ivybridge, silvermont.
