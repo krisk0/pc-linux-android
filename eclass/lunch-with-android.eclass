@@ -6,5 +6,5 @@ PATH=@path
 export PATH=@path
 '@make' $MAKEOPTS -f build/core/main.mk @tgt
 EOF
-  sed -i lunch-make.sh -e "s>@make>$(which make)>"
+  sed -i lunch-make.sh -e "s>@make>$(which make)>" || die
  }
