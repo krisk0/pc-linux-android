@@ -155,6 +155,12 @@ src_unpack()
 src_prepare()
  {
   cd bionic || die
+
+  # Some versions of GCC align stack before getting frame address, which results
+  #  in seg-faults on access to program name or command-line args. Patch below 
+  #  fixes this
+  patch -p0 libc/arch-common/bionic/crtbegin.c < $FILESDIR/crtbegin.diff
+
   # flock64 redefined in fcntl.h
   sed -e 's:struct flock64 {:struct redefined_flock64 {:' \
    -i libc/include/fcntl.h || exit

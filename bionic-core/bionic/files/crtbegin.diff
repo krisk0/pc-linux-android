@@ -1,0 +1,8 @@
+43,45d42
+< #ifdef __i386__
+< __attribute__((force_align_arg_pointer))
+< #endif
+55a53,55
+> #endif
+> #ifdef __i386__
+>   asm("and   $~15, %esp");
