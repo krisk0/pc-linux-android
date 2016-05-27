@@ -50,7 +50,7 @@ src_prepare()
   # Force /system/lib64 into library search path
   local s='Sysrooted prefixes are relocated because target_system_root is'
   local a='add_prefix(&startfile_prefixes,\"/system/lib64/\",'
-  a="${a}NULL,PREFIX_PRIORITY_B_OPT,0,1);"
+  local a="${a}NULL,PREFIX_PRIORITY_B_OPT,0,1);"
   sed -i gcc.c -e "\:$s:i $a" || die 'gcc|startfile_prefixes resist'
 
   # To reduce length of library search path, disable
@@ -81,6 +81,11 @@ src_prepare()
   sed -i $gcc_srcdir/configure -e \
    "s:echo.-funconfigured-libstdc++-v3:echo -isystem $cXXi -isystem $j:" ||
    die "unconfigured-libstdc++ resists"
+   
+  a='-z noexecstack -z relro -z now'
+  # add $a to linker options, to match NDK specs
+  sed -i config/linux-android.h -e \
+   "s^\"%{shared: -Bsymbolic}\"^\"%{shared: -Bsymbolic} $a\"^"
  }
 
 src_configure()
@@ -115,6 +120,8 @@ src_install()
 
   $emake DESTDIR="$ED" install ||
    die "make install failed, parallel make issue?"
+   
+  PATH="$saved_PATH"
 
   cd "$ED/usr" || die '/usr missing'
   # all 32-bit libraries shall be under lib32/ or 32/
@@ -132,8 +139,8 @@ src_install()
   mkdir -p $i ; cp -r $cXXi/* $i || die "C++ headers resist"
 
   # Put everything under /usr/$triple/, by moving the whole tree
-  local d=`ls`
-  mkdir $triple && mv $d $triple/ || die "mv to $triple/ failed"
+  i=`ls`
+  mkdir $triple && mv $i $triple/ || die "mv to $triple/ failed"
 
   # 64-bit libraries are now in /usr/$triple/lib64; 32-bit in
   #  /usr/$triple/lib. Sym-link compiler stub and bionic libraries so collect2
@@ -142,6 +149,13 @@ src_install()
   symlink-stub /system/lib64
   cd ../lib32
   symlink-stub /system/lib32
+
+  # name x86_64-linux-android-gcc-ar appears strange to me. Link 
+  #  x86_64-linux-android-ar -> x86_64-linux-android-gcc-ar
+  cd ../bin || die
+  for i in `ls x86_64-linux-android-gcc-*` ; do
+   [ -f $i ] && ln -s $i ${i/gcc-/} 2>/dev/null
+  done
 
   unset k CHECKREQS_DISK_BUILD gcc_srcdir emake triple root saved_PATH b cXXi
  }
