@@ -1,6 +1,8 @@
 # Copyright      2015 Денис Крыськов
 # Distributed under the terms of the GNU General Public License v2
 
+# todo: remove /lib64 and /usr/lib64 from library search path
+
 EAPI=5
 inherit befriend-gcc check-reqs gcc-configure
 HOMEPAGE=http://gcc.gnu.org/
@@ -36,7 +38,7 @@ src_prepare()
   echo ${PV}a > BASE-VER || die "BASE-VER resists"
 
   # Inject -lgnustl_shared automagically into collect2 command-line
-  ( cd cp; patch -p0 < "$FILESDIR/gnustl_automagic.diff" || 
+  ( cd cp; patch -p0 < "$FILESDIR/gnustl_automagic.diff" ||
      die "g++spec resists" )
 
   # turn off a loong subroutine that creates a loong libgcc setting; use -lgcc
@@ -51,7 +53,13 @@ src_prepare()
   local s='Sysrooted prefixes are relocated because target_system_root is'
   local a='add_prefix(&startfile_prefixes,\"/system/lib64/\",'
   local a="${a}NULL,PREFIX_PRIORITY_B_OPT,0,1);"
-  sed -i gcc.c -e "\:$s:i $a" || die 'gcc|startfile_prefixes resist'
+  sed -i gcc.c -e "\:$s:i $a" || die 'gcc startfile_prefixes resist'
+
+  # /lib and /usr/lib out of library path
+  s='#define STANDARD_STARTFILE_PREFIX_'
+  for a in 1 2 ; do
+   sed -i gcc.c -e "s:${s}$a .*:${s}$a \"\":" || die 'gcc /lib resists'
+  done
 
   # To reduce length of library search path, disable
   #  UPDATE_PATH_HOST_CANONICALIZE magic
@@ -81,7 +89,7 @@ src_prepare()
   sed -i $gcc_srcdir/configure -e \
    "s:echo.-funconfigured-libstdc++-v3:echo -isystem $cXXi -isystem $j:" ||
    die "unconfigured-libstdc++ resists"
-   
+
   a='-z noexecstack -z relro -z now'
   # add $a to linker options, to match NDK specs
   sed -i config/linux-android.h -e \
@@ -120,7 +128,7 @@ src_install()
 
   $emake DESTDIR="$ED" install ||
    die "make install failed, parallel make issue?"
-   
+
   PATH="$saved_PATH"
 
   cd "$ED/usr" || die '/usr missing'
@@ -128,12 +136,12 @@ src_install()
   mv lib lib32 || die "lib directory missing"
   # this way gcc will fail to find includes, must move lib32/lib
   ( cd lib32; mv lib .. || die "lib32/lib resists" )
-  
+
   # Put ld into libexec/...
-  cp -L $EPREFIX/usr/$triple/bin/ld-stage1 libexec/gcc/$triple/${PV}a/ld || 
+  cp -L $EPREFIX/usr/$triple/bin/ld-stage1 libexec/gcc/$triple/${PV}a/ld ||
    die "ld-stage1 resists"
   QA_PRESTRIPPED='/usr/.*'
-  
+
   # copy C++ headers
   i=include/c++/${PV}a
   mkdir -p $i ; cp -r $cXXi/* $i || die "C++ headers resist"
@@ -150,7 +158,7 @@ src_install()
   cd ../lib32
   symlink-stub /system/lib32
 
-  # name x86_64-linux-android-gcc-ar appears strange to me. Link 
+  # name x86_64-linux-android-gcc-ar appears strange to me. Link
   #  x86_64-linux-android-ar -> x86_64-linux-android-gcc-ar
   cd ../bin || die
   for i in `ls x86_64-linux-android-gcc-*` ; do
